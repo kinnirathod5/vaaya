@@ -1,13 +1,22 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
-// 🔥 Humare Premium Lego Blocks
-import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/haptic_utils.dart';
-import '../../../shared/widgets/glass_container.dart';
-import '../../../shared/animations/fade_animation.dart';
-import '../../../shared/widgets/primary_button.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/haptic_utils.dart';
+import '../../../../shared/animations/fade_animation.dart';
 
+import '../widgets/plan_card.dart';
+import '../widgets/perk_item.dart';
+import '../widgets/upgrade_header.dart';
+import '../widgets/testimonial_card.dart';
+
+// ============================================================
+// 💎 UPGRADE SCREEN
+// Premium plan selection — dark cinematic design
+// TODO: premiumProvider.initiatePayment(plan)
+// ============================================================
 class UpgradeScreen extends StatefulWidget {
   const UpgradeScreen({super.key});
 
@@ -16,228 +25,287 @@ class UpgradeScreen extends StatefulWidget {
 }
 
 class _UpgradeScreenState extends State<UpgradeScreen> {
-  // 🌟 State for selected plan (Default 3 Months selected)
-  int _selectedPlanIndex = 1;
 
-  // 💎 Dummy Data: Premium Plans
-  final List<Map<String, dynamic>> _plans = [
+  int _selectedPlan = 1; // 0 = 1 month, 1 = 3 months (default), 2 = 6 months
+
+  static const List<Map<String, dynamic>> _plans = [
     {
-      'months': '1',
-      'duration': 'Month',
+      'id': 0,
+      'duration': '1 Month',
       'price': '₹999',
-      'pricePerMonth': '₹999/mo',
-      'save': '',
-      'isPopular': false,
+      'perMonth': '₹999/mo',
+      'originalPrice': '₹1,499',
+      'saving': null,
+      'tag': null,
     },
     {
-      'months': '3',
-      'duration': 'Months',
-      'price': '₹1,497',
-      'pricePerMonth': '₹499/mo',
-      'save': 'SAVE 50%',
-      'isPopular': true,
+      'id': 1,
+      'duration': '3 Months',
+      'price': '₹2,199',
+      'perMonth': '₹733/mo',
+      'originalPrice': '₹4,497',
+      'saving': 'Save 51%',
+      'tag': 'Most Popular',
     },
     {
-      'months': '6',
-      'duration': 'Months',
-      'price': '₹1,794',
-      'pricePerMonth': '₹299/mo',
-      'save': 'SAVE 70%',
-      'isPopular': false,
+      'id': 2,
+      'duration': '6 Months',
+      'price': '₹3,599',
+      'perMonth': '₹599/mo',
+      'originalPrice': '₹8,994',
+      'saving': 'Save 60%',
+      'tag': 'Best Value',
     },
   ];
 
-  // 💎 Dummy Data: Premium Features
-  final List<Map<String, dynamic>> _features = [
-    {'icon': Icons.visibility_rounded, 'title': 'See Who Likes You', 'subtitle': 'Instantly match with people who already liked you.'},
-    {'icon': Icons.star_rounded, 'title': 'Unlimited Super Matches', 'subtitle': 'Stand out and get noticed 3x faster.'},
-    {'icon': Icons.tune_rounded, 'title': 'Advanced Filters', 'subtitle': 'Find exactly who you are looking for.'},
-    {'icon': Icons.replay_circle_filled_rounded, 'title': 'Unlimited Rewinds', 'subtitle': 'Accidentally swiped left? Bring them back.'},
+  static const List<Map<String, dynamic>> _perks = [
+    {
+      'icon': Icons.phone_rounded,
+      'title': 'Direct Contact Numbers',
+      'subtitle': 'Get your match\'s phone number directly.',
+      'isHighlight': true,
+    },
+    {
+      'icon': Icons.visibility_rounded,
+      'title': 'See Profile Visitors',
+      'subtitle': 'Know exactly who viewed your profile.',
+      'isHighlight': false,
+    },
+    {
+      'icon': Icons.favorite_rounded,
+      'title': 'Unlimited Interests',
+      'subtitle': 'Send as many interests as you want.',
+      'isHighlight': false,
+    },
+    {
+      'icon': Icons.star_rounded,
+      'title': 'Priority Listing',
+      'subtitle': 'Your profile appears at the top of search.',
+      'isHighlight': false,
+    },
+    {
+      'icon': Icons.auto_graph_rounded,
+      'title': 'Advanced Filters',
+      'subtitle': 'Filter by Gotra, height, income and more.',
+      'isHighlight': false,
+    },
+    {
+      'icon': Icons.workspace_premium_rounded,
+      'title': 'Kundali Match Report',
+      'subtitle': 'Detailed 36-point compatibility report.',
+      'isHighlight': true,
+    },
+    {
+      'icon': Icons.verified_rounded,
+      'title': 'Premium Badge',
+      'subtitle': 'Verified gold badge on your profile.',
+      'isHighlight': false,
+    },
+    {
+      'icon': Icons.support_agent_rounded,
+      'title': 'Priority Support',
+      'subtitle': '24/7 dedicated customer support.',
+      'isHighlight': false,
+    },
+  ];
+
+  static const List<Map<String, dynamic>> _testimonials = [
+    {
+      'name': 'Suresh Rathod',
+      'city': 'Mumbai',
+      'text': 'Found the right match within 2 weeks of going Premium. The contact number feature was incredibly useful.',
+      'rating': 5,
+    },
+    {
+      'name': 'Ramesh Pawar',
+      'city': 'Pune',
+      'text': 'The Kundali Match Report gave us so much confidence. Our families were reassured by the compatibility score.',
+      'rating': 5,
+    },
   ];
 
   @override
+  void initState() {
+    super.initState();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ));
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    final plan = _plans[_selectedPlan];
+
     return Scaffold(
-      // 🌌 Dark Premium Background
-      backgroundColor: AppTheme.brandDark,
+      backgroundColor: const Color(0xFF120610),
       body: Stack(
         children: [
-          // ✨ LUXURY AMBIENT GLOW (Gold/Purple)
-          Positioned(
-            top: -100, right: -50,
-            child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
-              child: Container(width: 300, height: 300, decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0x40FFD700))), // Gold
-            ),
-          ),
-          Positioned(
-            bottom: 100, left: -50,
-            child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
-              child: Container(width: 250, height: 250, decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0x309C27B0))), // Purple
-            ),
-          ),
+          _buildBackground(),
+          CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Column(
+                  children: [
 
-          SafeArea(
-            child: Column(
-              children: [
-                // 🎩 HEADER SECTION
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(25, 20, 25, 10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Premium',
-                        style: AppTheme.lightTheme.textTheme.displayLarge?.copyWith(fontSize: 32, color: Colors.white),
-                      ),
-                      GlassContainer(
-                        blur: 15, opacity: 0.2,
-                        padding: const EdgeInsets.all(12),
-                        borderRadius: BorderRadius.circular(30),
-                        child: const Icon(Icons.workspace_premium_rounded, color: Colors.amber, size: 22),
-                      ),
-                    ],
-                  ),
-                ),
-
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 20),
-
-                        // 👑 HERO SECTION
-                        const FadeAnimation(
-                          delayInMs: 100,
-                          child: Icon(Icons.diamond_rounded, size: 70, color: Colors.amber),
-                        ),
-                        const SizedBox(height: 15),
-                        const FadeAnimation(
-                          delayInMs: 200,
-                          child: Text(
-                            'Upgrade to VIP',
-                            style: TextStyle(fontFamily: 'Poppins', fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        FadeAnimation(
-                          delayInMs: 300,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 40),
-                            child: Text(
-                              'Get 10x more matches and unlock exclusive features to find your perfect partner.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: Colors.white.withOpacity(0.7), fontWeight: FontWeight.w500),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-
-                        // 💳 PRICING CARDS (Horizontal Scroll)
-                        SizedBox(
-                          height: 170,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 15),
-                            scrollDirection: Axis.horizontal,
-                            physics: const BouncingScrollPhysics(),
-                            itemCount: _plans.length,
-                            itemBuilder: (context, index) {
-                              return FadeAnimation(
-                                delayInMs: 400 + (index * 100),
-                                child: _buildPricingCard(index),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-
-                        // 📋 FEATURES LIST
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 25),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('VIP Benefits', style: TextStyle(fontFamily: 'Poppins', fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9))),
-                              const SizedBox(height: 20),
-                              ...List.generate(_features.length, (index) {
-                                final feature = _features[index];
-                                return FadeAnimation(
-                                  delayInMs: 600 + (index * 100),
-                                  child: Container(
-                                    margin: const EdgeInsets.only(bottom: 20),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(color: Colors.amber.withOpacity(0.15), shape: BoxShape.circle),
-                                          child: Icon(feature['icon'], color: Colors.amber, size: 24),
-                                        ),
-                                        const SizedBox(width: 15),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(feature['title'], style: const TextStyle(fontFamily: 'Poppins', fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
-                                              const SizedBox(height: 2),
-                                              Text(feature['subtitle'], style: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: Colors.white.withOpacity(0.6))),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              }),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 120), // Bottom nav padding
-                      ],
+                    // Back + member count
+                    UpgradeHeader(
+                      onBackTap: () {
+                        HapticUtils.lightImpact();
+                        context.pop();
+                      },
                     ),
-                  ),
+
+                    // Diamond icon + title
+                    FadeAnimation(
+                      delayInMs: 80,
+                      child: _buildHeroTitle(),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Plan cards
+                    FadeAnimation(
+                      delayInMs: 180,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          children: _plans.map((p) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: PlanCard(
+                              plan: p,
+                              isSelected: _selectedPlan == (p['id'] as int),
+                              onTap: () {
+                                HapticUtils.selectionClick();
+                                setState(() => _selectedPlan = p['id'] as int);
+                              },
+                            ),
+                          )).toList(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Perks
+                    FadeAnimation(
+                      delayInMs: 260,
+                      child: _buildPerksSection(),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Testimonials
+                    FadeAnimation(
+                      delayInMs: 340,
+                      child: _buildTestimonials(),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Trust badges
+                    FadeAnimation(
+                      delayInMs: 400,
+                      child: _buildTrustBadges(),
+                    ),
+
+                    SizedBox(height: 110 + bottomPad),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
 
-          // 🔘 FLOATING BOTTOM CTA
+          // Sticky bottom CTA
           Positioned(
             bottom: 0, left: 0, right: 0,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(25, 20, 25, 100), // 100 to clear bottom nav
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter, end: Alignment.topCenter,
-                  colors: [AppTheme.brandDark, AppTheme.brandDark.withOpacity(0.9), Colors.transparent],
-                  stops: const [0.5, 0.8, 1.0],
-                ),
-              ),
-              child: GestureDetector(
-                onTap: () {
-                  HapticUtils.heavyImpact();
-                  // TODO: Initialize Payment Gateway (Razorpay/Stripe)
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOutCubic,
-                  width: double.infinity,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFFA500)]), // Gold Gradient
-                    boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 8))],
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Continue',
-                      style: TextStyle(fontFamily: 'Poppins', fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.brandDark, letterSpacing: 1),
-                    ),
-                  ),
-                ),
-              ),
+            child: _buildBottomCTA(plan, bottomPad),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Background glows ──────────────────────────────────────
+  Widget _buildBackground() {
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(gradient: AppTheme.darkGradient),
+        ),
+        Positioned(
+          top: -60, right: -60,
+          child: Container(
+            width: 280, height: 280,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.goldPrimary.withValues(alpha: 0.07),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 200, left: -80,
+          child: Container(
+            width: 220, height: 220,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.brandPrimary.withValues(alpha: 0.05),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Hero title ────────────────────────────────────────────
+  Widget _buildHeroTitle() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        children: [
+          Container(
+            width: 72, height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: AppTheme.goldGradient,
+              boxShadow: AppTheme.goldGlow,
+            ),
+            child: const Icon(
+              Icons.diamond_rounded,
+              color: Colors.white,
+              size: 34,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'BANJARA VIVAH',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 11,
+              color: Color(0xFFF5C842),
+              fontWeight: FontWeight.w700,
+              letterSpacing: 3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Elite Membership',
+            style: TextStyle(
+              fontFamily: 'Cormorant Garamond',
+              fontSize: 36,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              letterSpacing: -0.5,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Complete freedom to find your perfect match\n— with just one upgrade.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 13,
+              color: Colors.white.withValues(alpha: 0.45),
+              height: 1.6,
             ),
           ),
         ],
@@ -245,72 +313,252 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
     );
   }
 
-  // 💳 PRICING CARD BUILDER
-  Widget _buildPricingCard(int index) {
-    final plan = _plans[index];
-    final isSelected = _selectedPlanIndex == index;
-
-    return GestureDetector(
-      onTap: () {
-        HapticUtils.selectionClick();
-        setState(() => _selectedPlanIndex = index);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: 130,
-        margin: const EdgeInsets.symmetric(horizontal: 10),
-        padding: const EdgeInsets.all(2), // For gradient border effect
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: isSelected
-              ? const LinearGradient(colors: [Colors.amber, Colors.orangeAccent], begin: Alignment.topLeft, end: Alignment.bottomRight)
-              : LinearGradient(colors: [Colors.grey.shade800, Colors.grey.shade900]),
-          boxShadow: isSelected ? [BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 5))] : [],
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: isSelected ? AppTheme.brandDark.withOpacity(0.9) : Colors.grey.shade900,
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
+  // ── Perks section ─────────────────────────────────────────
+  Widget _buildPerksSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22),
+          child: Row(
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 20),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(plan['months'], style: TextStyle(fontFamily: 'Poppins', fontSize: 32, fontWeight: FontWeight.w900, color: isSelected ? Colors.amber : Colors.white)),
-                    Text(plan['duration'], style: TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.bold, color: isSelected ? Colors.amber.withOpacity(0.8) : Colors.grey.shade500)),
-                    const Spacer(),
-                    Text(plan['pricePerMonth'], style: const TextStyle(fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
-                    const SizedBox(height: 5),
-                    Text('Total ${plan['price']}', style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: Colors.white.withOpacity(0.5))),
-                  ],
+              const Text(
+                'What you get',
+                style: TextStyle(
+                  fontFamily: 'Cormorant Garamond',
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: -0.3,
                 ),
               ),
-
-              // 🏷️ "SAVE %" or "POPULAR" Badge
-              if (plan['save'].toString().isNotEmpty || plan['isPopular'])
-                Positioned(
-                  top: -10, left: 0, right: 0,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [Colors.amber, Colors.orange]),
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.4), blurRadius: 4, offset: const Offset(0, 2))],
-                      ),
-                      child: Text(
-                        plan['isPopular'] ? 'MOST POPULAR' : plan['save'],
-                        style: const TextStyle(fontFamily: 'Poppins', fontSize: 9, fontWeight: FontWeight.w900, color: AppTheme.brandDark),
-                      ),
-                    ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.goldPrimary.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.goldPrimary.withValues(alpha: 0.28),
                   ),
                 ),
+                child: const Text(
+                  '8 perks',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFF5C842),
+                  ),
+                ),
+              ),
             ],
           ),
+        ),
+        const SizedBox(height: 16),
+        ..._perks.map((p) => PerkItem(perk: p)),
+      ],
+    );
+  }
+
+  // ── Testimonials ──────────────────────────────────────────
+  Widget _buildTestimonials() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 22),
+          child: Text(
+            'What members say',
+            style: TextStyle(
+              fontFamily: 'Cormorant Garamond',
+              fontSize: 26,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              letterSpacing: -0.3,
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        ..._testimonials.map((t) => TestimonialCard(testimonial: t)),
+      ],
+    );
+  }
+
+  // ── Trust badges ──────────────────────────────────────────
+  Widget _buildTrustBadges() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          _TrustBadge(icon: Icons.lock_rounded,    label: '100% Secure'),
+          const SizedBox(width: 10),
+          _TrustBadge(icon: Icons.cancel_rounded,  label: 'Cancel Anytime'),
+          const SizedBox(width: 10),
+          _TrustBadge(icon: Icons.verified_rounded, label: 'Verified Profiles'),
+        ],
+      ),
+    );
+  }
+
+  // ── Bottom CTA ────────────────────────────────────────────
+  Widget _buildBottomCTA(Map<String, dynamic> plan, double bottomPad) {
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: EdgeInsets.fromLTRB(20, 14, 20, 14 + bottomPad),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A0814).withValues(alpha: 0.92),
+            border: Border(
+              top: BorderSide(
+                color: AppTheme.goldPrimary.withValues(alpha: 0.40),
+                width: 0.5,
+              ),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+
+              // Price row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    plan['price'],
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFF5C842),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'for ${plan['duration']}',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      color: Colors.white.withValues(alpha: 0.42),
+                    ),
+                  ),
+                  if (plan['saving'] != null) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7, vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.success.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppTheme.success.withValues(alpha: 0.28),
+                        ),
+                      ),
+                      child: Text(
+                        plan['saving'],
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF4ADE80),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // CTA button
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: () {
+                    HapticUtils.heavyImpact();
+                    // TODO: premiumProvider.initiatePayment(plan)
+                    context.push('/payment');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.goldPrimary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.diamond_rounded, size: 17),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Upgrade to Elite — ${plan['price']}',
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                'Auto-renews. Cancel anytime.',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 10,
+                  color: Colors.white.withValues(alpha: 0.25),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+// ── Trust badge ───────────────────────────────────────────────
+class _TrustBadge extends StatelessWidget {
+  const _TrustBadge({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.07),
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: AppTheme.goldLight, size: 20),
+            const SizedBox(height: 5),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                color: Colors.white.withValues(alpha: 0.42),
+              ),
+            ),
+          ],
         ),
       ),
     );

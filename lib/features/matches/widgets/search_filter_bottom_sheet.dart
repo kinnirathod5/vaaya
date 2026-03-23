@@ -1,236 +1,206 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/haptic_utils.dart';
 
-// 🔥 Humare Premium Lego Blocks
-import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/haptic_utils.dart';
-import '../../../shared/widgets/primary_button.dart';
-
+// ============================================================
+// 🎛️ SEARCH FILTER BOTTOM SHEET
+// Advanced filters: age, height, city, education, toggles
+// TODO: filterProvider se connect karo (Riverpod)
+// ============================================================
 class SearchFilterBottomSheet extends StatefulWidget {
   const SearchFilterBottomSheet({super.key});
 
   @override
-  State<SearchFilterBottomSheet> createState() => _SearchFilterBottomSheetState();
+  State<SearchFilterBottomSheet> createState() =>
+      _SearchFilterBottomSheetState();
 }
 
-class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
-  // 🌟 Filter States (Dummy Default Values)
-  RangeValues _ageRange = const RangeValues(22, 35);
-  RangeValues _heightRange = const RangeValues(152, 182); // in cm (approx 5'0" to 6'0")
+class _SearchFilterBottomSheetState
+    extends State<SearchFilterBottomSheet> {
 
-  String _selectedMaritalStatus = 'Never Married';
-  final List<String> _maritalStatusOptions = ['Never Married', 'Awaiting Divorce', 'Divorced', 'Widowed'];
+  RangeValues _ageRange    = const RangeValues(21, 32);
+  RangeValues _heightRange = const RangeValues(150, 175);
+  String _city             = 'Any';
+  String _education        = 'Any';
+  bool _onlineOnly         = false;
+  bool _premiumOnly        = false;
 
-  String _selectedDiet = 'Doesn\'t Matter';
-  final List<String> _dietOptions = ['Doesn\'t Matter', 'Vegetarian', 'Non-Vegetarian', 'Vegan'];
+  static const List<String> _cities = [
+    'Any', 'Mumbai', 'Pune', 'Nagpur', 'Nashik',
+    'Aurangabad', 'Kolhapur', 'Delhi', 'Bangalore',
+  ];
 
-  // Height conversion helper (cm to feet/inches string)
-  String _cmToFeet(double cm) {
-    int inches = (cm / 2.54).round();
-    int feet = inches ~/ 12;
-    int remainingInches = inches % 12;
-    return "$feet'$remainingInches\"";
-  }
-
-  void _applyFilters() {
-    HapticUtils.heavyImpact();
-    // TODO: Pass filter data back or trigger search logic
-    context.pop(); // Close bottom sheet
-  }
-
-  void _resetFilters() {
-    HapticUtils.lightImpact();
-    setState(() {
-      _ageRange = const RangeValues(18, 40);
-      _heightRange = const RangeValues(140, 198);
-      _selectedMaritalStatus = 'Never Married';
-      _selectedDiet = 'Doesn\'t Matter';
-    });
-  }
+  static const List<String> _educations = [
+    'Any', 'B.Tech', 'MBBS', 'CA', 'B.Arch',
+    'LLB', 'MBA', 'M.Tech', 'B.Des', 'M.Ed',
+  ];
 
   @override
   Widget build(BuildContext context) {
-    // Total screen height ka 90% lega (Full screen feel ke liye)
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
     return Container(
-      height: MediaQuery.of(context).size.height * 0.9,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.88,
+      ),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // 🔘 Drag Handle
+
+          // Handle
           const SizedBox(height: 12),
           Container(
-            width: 50,
-            height: 5,
+            width: 40, height: 4,
             decoration: BoxDecoration(
               color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(4),
             ),
           ),
+          const SizedBox(height: 16),
 
-          // 🎩 Header Row (Reset | Title | Close)
+          // Header
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 15, 20, 15),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                GestureDetector(
-                  onTap: _resetFilters,
-                  child: const Text('Reset', style: TextStyle(fontFamily: 'Poppins', fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey)),
+                const Text(
+                  'Filter Matches',
+                  style: TextStyle(
+                    fontFamily: 'Cormorant Garamond',
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.brandDark,
+                    letterSpacing: -0.3,
+                  ),
                 ),
-                const Text('Filters', style: TextStyle(fontFamily: 'Poppins', fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.brandDark)),
-                GestureDetector(
-                  onTap: () {
-                    HapticUtils.lightImpact();
-                    context.pop();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
-                    child: const Icon(Icons.close_rounded, size: 20, color: AppTheme.brandDark),
+                TextButton(
+                  onPressed: _reset,
+                  child: const Text(
+                    'Reset',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      color: AppTheme.brandPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          Divider(color: Colors.grey.shade200, height: 1),
-
-          // 📜 Scrollable Filter Options
-          Expanded(
+          // Scrollable content
+          Flexible(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
+              padding: EdgeInsets.fromLTRB(20, 8, 20, 20 + bottomPad),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 🎂 1. AGE RANGE
-                  _buildSectionHeader('Age Range', '${_ageRange.start.toInt()} yrs - ${_ageRange.end.toInt()} yrs'),
-                  const SizedBox(height: 10),
+
+                  // Age range
+                  _SectionLabel('Age Range'),
+                  _RangeHint(
+                    '${_ageRange.start.round()} – ${_ageRange.end.round()} years',
+                  ),
                   RangeSlider(
                     values: _ageRange,
-                    min: 18,
-                    max: 60,
-                    divisions: 42,
+                    min: 18, max: 50, divisions: 32,
                     activeColor: AppTheme.brandPrimary,
-                    inactiveColor: AppTheme.brandPrimary.withOpacity(0.2),
-                    onChanged: (RangeValues values) {
-                      setState(() => _ageRange = values);
+                    inactiveColor: Colors.grey.shade200,
+                    onChanged: (v) {
                       HapticUtils.selectionClick();
+                      setState(() => _ageRange = v);
                     },
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 16),
 
-                  // 📏 2. HEIGHT RANGE
-                  _buildSectionHeader('Height', '${_cmToFeet(_heightRange.start)} - ${_cmToFeet(_heightRange.end)}'),
-                  const SizedBox(height: 10),
+                  // Height range
+                  _SectionLabel('Height Range'),
+                  _RangeHint(
+                    '${_cmToFeet(_heightRange.start.round())} – ${_cmToFeet(_heightRange.end.round())}',
+                  ),
                   RangeSlider(
                     values: _heightRange,
-                    min: 140, // ~4'7"
-                    max: 200, // ~6'7"
+                    min: 140, max: 190, divisions: 50,
                     activeColor: AppTheme.brandPrimary,
-                    inactiveColor: AppTheme.brandPrimary.withOpacity(0.2),
-                    onChanged: (RangeValues values) {
-                      setState(() => _heightRange = values);
+                    inactiveColor: Colors.grey.shade200,
+                    onChanged: (v) {
                       HapticUtils.selectionClick();
+                      setState(() => _heightRange = v);
                     },
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 16),
 
-                  // 💍 3. MARITAL STATUS
-                  _buildSectionHeader('Marital Status', ''),
-                  const SizedBox(height: 15),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: _maritalStatusOptions.map((status) => _buildChoiceChip(
-                      label: status,
-                      isSelected: _selectedMaritalStatus == status,
-                      onTap: () {
-                        HapticUtils.lightImpact();
-                        setState(() => _selectedMaritalStatus = status);
-                      },
-                    )).toList(),
+                  // City
+                  _SectionLabel('City'),
+                  const SizedBox(height: 10),
+                  _ChipGroup(
+                    items: _cities,
+                    selected: _city,
+                    onSelect: (v) => setState(() => _city = v),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 16),
 
-                  // 🥗 4. DIET PREFERENCES
-                  _buildSectionHeader('Diet Preferences', ''),
-                  const SizedBox(height: 15),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: _dietOptions.map((diet) => _buildChoiceChip(
-                      label: diet,
-                      isSelected: _selectedDiet == diet,
-                      onTap: () {
-                        HapticUtils.lightImpact();
-                        setState(() => _selectedDiet = diet);
-                      },
-                    )).toList(),
+                  // Education
+                  _SectionLabel('Education'),
+                  const SizedBox(height: 10),
+                  _ChipGroup(
+                    items: _educations,
+                    selected: _education,
+                    onSelect: (v) => setState(() => _education = v),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 16),
 
-                  // 📍 5. LOCATION (Dummy Dropdown style)
-                  _buildSectionHeader('Location / City', ''),
-                  const SizedBox(height: 15),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Anywhere in India', style: TextStyle(fontFamily: 'Poppins', fontSize: 14, color: AppTheme.brandDark, fontWeight: FontWeight.w500)),
-                        Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey.shade600),
-                      ],
-                    ),
+                  // Preference toggles
+                  _SectionLabel('Preferences'),
+                  const SizedBox(height: 10),
+                  _ToggleRow(
+                    label: 'Online users only',
+                    subtitle: 'Show only currently active profiles',
+                    value: _onlineOnly,
+                    onChanged: (v) => setState(() => _onlineOnly = v),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 8),
+                  _ToggleRow(
+                    label: 'Premium profiles only',
+                    subtitle: 'Verified and premium members',
+                    value: _premiumOnly,
+                    onChanged: (v) => setState(() => _premiumOnly = v),
+                  ),
+                  const SizedBox(height: 28),
 
-                  // 💼 6. PROFESSION (Dummy Dropdown style)
-                  _buildSectionHeader('Profession', ''),
-                  const SizedBox(height: 15),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('All Professions', style: TextStyle(fontFamily: 'Poppins', fontSize: 14, color: AppTheme.brandDark, fontWeight: FontWeight.w500)),
-                        Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey.shade600),
-                      ],
+                  // Apply
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _apply,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.brandPrimary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text(
+                        'Apply Filters',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
+                      ),
                     ),
                   ),
-
-                  const SizedBox(height: 50), // Bottom padding for smooth scrolling
                 ],
               ),
-            ),
-          ),
-
-          // 💾 Sticky Apply Button at Bottom
-          Container(
-            padding: const EdgeInsets.fromLTRB(25, 15, 25, 30),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -5))],
-            ),
-            child: PrimaryButton(
-              text: 'Show 124 Matches', // Dynamic number can be shown here later
-              onTap: _applyFilters,
             ),
           ),
         ],
@@ -238,40 +208,169 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     );
   }
 
-  // 📝 Helper: Section Title with Dynamic Value
-  Widget _buildSectionHeader(String title, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(title, style: const TextStyle(fontFamily: 'Poppins', fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.brandDark)),
-        if (value.isNotEmpty)
-          Text(value, style: const TextStyle(fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.brandPrimary)),
-      ],
-    );
+  String _cmToFeet(int cm) {
+    final inches = (cm / 2.54).round();
+    return "${inches ~/ 12}'${inches % 12}\"";
   }
 
-  // 🏷️ Helper: Custom Choice Chip
-  Widget _buildChoiceChip({required String label, required bool isSelected, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.brandPrimary : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? AppTheme.brandPrimary : Colors.grey.shade300),
-          boxShadow: isSelected ? [BoxShadow(color: AppTheme.brandPrimary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : [],
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? Colors.white : Colors.grey.shade700,
+  void _reset() {
+    HapticUtils.lightImpact();
+    setState(() {
+      _ageRange    = const RangeValues(21, 32);
+      _heightRange = const RangeValues(150, 175);
+      _city        = 'Any';
+      _education   = 'Any';
+      _onlineOnly  = false;
+      _premiumOnly = false;
+    });
+  }
+
+  void _apply() {
+    HapticUtils.mediumImpact();
+    // TODO: filterProvider.applyFilters({...})
+    Navigator.of(context).pop();
+  }
+}
+
+
+// ── Private section widgets ───────────────────────────────────
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    style: const TextStyle(
+      fontFamily: 'Poppins',
+      fontSize: 14,
+      fontWeight: FontWeight.w800,
+      color: AppTheme.brandDark,
+    ),
+  );
+}
+
+class _RangeHint extends StatelessWidget {
+  const _RangeHint(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    style: TextStyle(
+      fontFamily: 'Poppins',
+      fontSize: 12,
+      color: Colors.grey.shade500,
+    ),
+  );
+}
+
+class _ChipGroup extends StatelessWidget {
+  const _ChipGroup({
+    required this.items,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final List<String> items;
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8, runSpacing: 8,
+      children: items.map((item) {
+        final isSelected = item == selected;
+        return GestureDetector(
+          onTap: () {
+            HapticUtils.selectionClick();
+            onSelect(item);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: isSelected ? AppTheme.brandPrimary : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isSelected
+                    ? AppTheme.brandPrimary
+                    : Colors.grey.shade200,
+              ),
+            ),
+            child: Text(
+              item,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? Colors.white : Colors.grey.shade700,
+              ),
+            ),
           ),
-        ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow({
+    required this.label,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.brandDark,
+                )),
+                const SizedBox(height: 1),
+                Text(subtitle, style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 11,
+                  color: Colors.grey.shade500,
+                )),
+              ],
+            ),
+          ),
+          Transform.scale(
+            scale: 0.88,
+            child: Switch(
+              value: value,
+              onChanged: (v) {
+                HapticUtils.selectionClick();
+                onChanged(v);
+              },
+              activeColor: AppTheme.brandPrimary,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ],
       ),
     );
   }

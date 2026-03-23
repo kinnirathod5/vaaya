@@ -2,17 +2,31 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// 🔥 Humare Premium Lego Blocks & Theme
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/haptic_utils.dart';
 
-// 🚀 Saari 5 Screens ke Imports
 import '../../home/screens/home_screen.dart';
 import '../../matches/screens/matches_screen.dart';
 import '../../interests/screens/interests_screen.dart';
 import '../../chat/screens/chat_list_screen.dart';
 import '../../premium/screens/upgrade_screen.dart';
 
+// ============================================================
+// 🧭 MAIN SCAFFOLD
+// Root shell — hosts all 5 bottom nav tabs.
+// Uses IndexedStack so screens retain their scroll state.
+//
+// Tabs:
+//   0 → Home         (HomeScreen)
+//   1 → Matches      (MatchesScreen)
+//   2 → Interests    (InterestsScreen)   — badge: received count
+//   3 → Chat         (ChatListScreen)    — badge: unread count
+//   4 → Premium      (UpgradeScreen)     — gold VIP button
+//
+// TODO: Replace dummy badge counts with Riverpod providers:
+//   interestsProvider.receivedCount
+//   chatProvider.totalUnreadCount
+// ============================================================
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
 
@@ -21,62 +35,136 @@ class MainScaffold extends StatefulWidget {
 }
 
 class _MainScaffoldState extends State<MainScaffold> {
+
   int _currentIndex = 0;
 
-  // 🔥 THE ACTUAL LIST OF SCREENS
-  final List<Widget> _screens = [
-    const HomeScreen(),      // Index 0: Dashboard
-    const MatchesScreen(),   // Index 1: Find Matches
-    const InterestsScreen(), // Index 2: Likes/Requests
-    const ChatListScreen(),  // Index 3: Messages
-    const UpgradeScreen(),   // Index 4: VIP/Premium
+  // Dummy badge counts — TODO: replace with providers
+  static const int _interestsBadge = 3;
+  static const int _chatBadge      = 2;
+
+  static const List<Widget> _screens = [
+    HomeScreen(),
+    MatchesScreen(),
+    InterestsScreen(),
+    ChatListScreen(),
+    UpgradeScreen(),
   ];
+
+  void _onTabTap(int index) {
+    if (index == _currentIndex) return;
+    // Premium tab gets heavier feedback — feels more significant
+    if (index == 4) {
+      HapticUtils.heavyImpact();
+    } else {
+      HapticUtils.selectionClick();
+    }
+    setState(() => _currentIndex = index);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bgScaffold,
-
-      // 🔥 Content will scroll behind the frosted glass nav bar
-      extendBody: true,
-
+      extendBody: true, // Content scrolls behind frosted nav bar
       body: IndexedStack(
         index: _currentIndex,
         children: _screens,
       ),
-
-      // 🔥 FIXED DOCKED NAVIGATION BAR (As per your brilliant design)
-      bottomNavigationBar: _buildDockedGlassNavBar(),
+      bottomNavigationBar: _NavBar(
+        currentIndex: _currentIndex,
+        interestsBadge: _interestsBadge,
+        chatBadge: _chatBadge,
+        onTap: _onTabTap,
+      ),
     );
   }
+}
 
-  Widget _buildDockedGlassNavBar() {
-    return ClipRRect(
+
+// ══════════════════════════════════════════════════════════
+// NAV BAR — frosted glass, pill indicator, sliding label
+// ══════════════════════════════════════════════════════════
+class _NavBar extends StatelessWidget {
+  const _NavBar({
+    required this.currentIndex,
+    required this.interestsBadge,
+    required this.chatBadge,
+    required this.onTap,
+  });
+
+  final int currentIndex;
+  final int interestsBadge;
+  final int chatBadge;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+        filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.85),
-            // 🔥 Sirf top par ek subtle border, premium finish ke liye
-            border: Border(top: BorderSide(color: Colors.white.withOpacity(0.6), width: 1.5)),
+            color: Colors.white.withValues(alpha: 0.86),
+            border: Border(
+              top: BorderSide(
+                color: Colors.white.withValues(alpha: 0.55),
+                width: 1.5,
+              ),
+            ),
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -5))
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 20,
+                offset: const Offset(0, -5),
+              ),
             ],
           ),
-          // 🔥 SafeArea automatically iOS ke home indicator / Android gestures ki jagah chhod dega
           child: SafeArea(
             top: false,
-            child: Container(
-              height: 65, // Ekdum sleek height
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: SizedBox(
+              height: 62,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildNavItem(icon: Icons.home_filled, index: 0, label: 'Home'),
-                  _buildNavItem(icon: Icons.grid_view_rounded, index: 1, label: 'Matches'),
-                  _buildNavItem(icon: Icons.favorite_rounded, index: 2, label: 'Likes', badgeCount: 12),
-                  _buildNavItem(icon: Icons.chat_bubble_rounded, index: 3, label: 'Chat', badgeCount: 3),
-                  _buildPremiumNavItem(),
+
+                  _NavItem(
+                    icon: Icons.home_rounded,
+                    label: 'Home',
+                    index: 0,
+                    isSelected: currentIndex == 0,
+                    onTap: () => onTap(0),
+                  ),
+
+                  _NavItem(
+                    icon: Icons.grid_view_rounded,
+                    label: 'Matches',
+                    index: 1,
+                    isSelected: currentIndex == 1,
+                    onTap: () => onTap(1),
+                  ),
+
+                  _NavItem(
+                    icon: Icons.favorite_rounded,
+                    label: 'Interests',
+                    index: 2,
+                    isSelected: currentIndex == 2,
+                    badge: interestsBadge,
+                    onTap: () => onTap(2),
+                  ),
+
+                  _NavItem(
+                    icon: Icons.chat_bubble_rounded,
+                    label: 'Chat',
+                    index: 3,
+                    isSelected: currentIndex == 3,
+                    badge: chatBadge,
+                    onTap: () => onTap(3),
+                  ),
+
+                  _PremiumNavItem(
+                    isSelected: currentIndex == 4,
+                    onTap: () => onTap(4),
+                  ),
                 ],
               ),
             ),
@@ -85,55 +173,96 @@ class _MainScaffoldState extends State<MainScaffold> {
       ),
     );
   }
+}
 
-  // --- UPGRADED NAVIGATION ICON WITH PILL & BADGES ---
-  Widget _buildNavItem({required IconData icon, required int index, required String label, int badgeCount = 0}) {
-    bool isSelected = _currentIndex == index;
 
+// ── Standard nav item ─────────────────────────────────────────
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.index,
+    required this.isSelected,
+    required this.onTap,
+    this.badge = 0,
+  });
+
+  final IconData icon;
+  final String label;
+  final int index;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final int badge;
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        HapticUtils.selectionClick();
-        setState(() => _currentIndex = index);
-      },
+      onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 350),
+        duration: const Duration(milliseconds: 320),
         curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(horizontal: isSelected ? 12 : 8, vertical: 10),
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 14 : 10,
+          vertical: 10,
+        ),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.brandPrimary.withOpacity(0.12) : Colors.transparent,
-          borderRadius: BorderRadius.circular(25),
+          color: isSelected
+              ? AppTheme.brandPrimary.withValues(alpha: 0.10)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(22),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+
+            // Icon + badge
             Stack(
               clipBehavior: Clip.none,
               children: [
                 Icon(
                   icon,
-                  color: isSelected ? AppTheme.brandPrimary : Colors.grey.shade400,
-                  size: 26, // 🔥 Thoda bada kiya solid feel ke liye
+                  size: 24,
+                  color: isSelected
+                      ? AppTheme.brandPrimary
+                      : Colors.grey.shade400,
                 ),
 
-                // NOTIFICATION BADGE
-                if (badgeCount > 0)
+                // Badge — hidden when tab is selected
+                if (badge > 0)
                   Positioned(
                     top: -4, right: -6,
                     child: AnimatedScale(
                       scale: isSelected ? 0.0 : 1.0,
                       duration: const Duration(milliseconds: 200),
                       child: Container(
-                        padding: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE94057),
+                          color: AppTheme.brandPrimary,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 1.5),
-                          boxShadow: [BoxShadow(color: const Color(0xFFE94057).withOpacity(0.4), blurRadius: 4, offset: const Offset(0, 2))],
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.brandPrimary.withValues(alpha: 0.35),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
                         ),
                         child: Text(
-                          badgeCount > 9 ? '9+' : badgeCount.toString(),
-                          style: const TextStyle(fontFamily: 'Poppins', color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold, height: 1),
+                          badge > 9 ? '9+' : '$badge',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontFamily: 'Poppins',
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w800,
+                            height: 1,
+                          ),
                         ),
                       ),
                     ),
@@ -141,20 +270,25 @@ class _MainScaffoldState extends State<MainScaffold> {
               ],
             ),
 
-            // 🔥 Sliding Text Label
+            // Sliding label — appears when selected
             AnimatedSize(
-              duration: const Duration(milliseconds: 350),
+              duration: const Duration(milliseconds: 320),
               curve: Curves.easeOutCubic,
               alignment: Alignment.centerLeft,
               child: SizedBox(
                 width: isSelected ? null : 0,
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 6.0),
+                  padding: const EdgeInsets.only(left: 6),
                   child: Text(
                     label,
                     maxLines: 1,
                     softWrap: false,
-                    style: const TextStyle(fontFamily: 'Poppins', color: AppTheme.brandPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      color: AppTheme.brandPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -164,42 +298,67 @@ class _MainScaffoldState extends State<MainScaffold> {
       ),
     );
   }
+}
 
-  // --- VIP PREMIUM NAVIGATION ICON ---
-  Widget _buildPremiumNavItem() {
-    bool isSelected = _currentIndex == 4;
 
+// ── Premium (VIP) nav item ────────────────────────────────────
+class _PremiumNavItem extends StatelessWidget {
+  const _PremiumNavItem({
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        HapticUtils.heavyImpact();
-        setState(() => _currentIndex = 4);
-      },
+      onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF1E1E1E).withOpacity(0.08) : Colors.transparent,
-          borderRadius: BorderRadius.circular(25),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+          width: 44, height: 44,
           decoration: BoxDecoration(
-            gradient: isSelected
-                ? const LinearGradient(colors: [Color(0xFF1E1E1E), Color(0xFF3A3D45)], begin: Alignment.topLeft, end: Alignment.bottomRight)
-                : LinearGradient(colors: [const Color(0xFFFFDF00).withOpacity(0.3), const Color(0xFFD4AF37).withOpacity(0.2)]),
             shape: BoxShape.circle,
+            gradient: isSelected
+                ? const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF1A0814), Color(0xFF2D1020)],
+            )
+                : LinearGradient(
+              colors: [
+                const Color(0xFFFFDF00).withValues(alpha: 0.28),
+                const Color(0xFFD4AF37).withValues(alpha: 0.18),
+              ],
+            ),
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFFFFD700).withValues(alpha: 0.55)
+                  : const Color(0xFFD4AF37).withValues(alpha: 0.35),
+              width: 1.5,
+            ),
             boxShadow: [
-              if (isSelected) BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4)),
-              if (!isSelected) BoxShadow(color: const Color(0xFFFFD700).withOpacity(0.15), blurRadius: 15, spreadRadius: 2),
+              BoxShadow(
+                color: isSelected
+                    ? Colors.black.withValues(alpha: 0.20)
+                    : const Color(0xFFFFD700).withValues(alpha: 0.18),
+                blurRadius: isSelected ? 10 : 14,
+                spreadRadius: isSelected ? 0 : 1,
+                offset: const Offset(0, 3),
+              ),
             ],
-            border: isSelected ? Border.all(color: const Color(0xFFFFD700).withOpacity(0.5), width: 1.5) : null,
           ),
           child: Icon(
             Icons.diamond_rounded,
-            color: isSelected ? const Color(0xFFFFD700) : const Color(0xFFB8860B),
-            size: 20, // 🔥 VIP icon thoda aur sharp kiya
+            size: 20,
+            color: isSelected
+                ? const Color(0xFFFFD700)
+                : const Color(0xFFB8860B),
           ),
         ),
       ),

@@ -1,14 +1,23 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-// 🔥 Humare Premium Lego Blocks
-import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/haptic_utils.dart';
-import '../../../shared/widgets/custom_network_image.dart';
-import '../../../shared/widgets/glass_container.dart';
-import '../../../shared/animations/fade_animation.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/haptic_utils.dart';
+import '../../../../core/constants/app_assets.dart';
 
+import '../widgets/message_bubble.dart';
+import '../widgets/chat_input_bar.dart';
+import '../widgets/chat_detail_header.dart';
+
+// ============================================================
+// 💬 CHAT DETAIL SCREEN
+// Individual conversation — messages + input bar
+//
+// TODO: chatProvider.messages(conversationId)
+//       chatProvider.sendMessage(conversationId, text)
+//       Firestore real-time snapshots
+// ============================================================
 class ChatDetailScreen extends StatefulWidget {
   const ChatDetailScreen({super.key});
 
@@ -17,226 +26,308 @@ class ChatDetailScreen extends StatefulWidget {
 }
 
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
-  final TextEditingController _messageController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
 
-  // 🌟 Dummy Messages Data
+  final TextEditingController _msgCtrl = TextEditingController();
+  final ScrollController _scrollCtrl = ScrollController();
+  bool _isTyping = false;
+
+  // ── Dummy data ────────────────────────────────────────────
+  static const Map<String, dynamic> _otherUser = {
+    'name':       'Priya Rathod',
+    'image':      AppAssets.dummyFemale1,
+    'isOnline':   true,
+    'lastSeen':   'Online',
+    'profession': 'Software Engineer',
+    'city':       'Bengaluru',
+    'isPremium':  false,
+  };
+
   final List<Map<String, dynamic>> _messages = [
-    {'text': 'Namaste! I really liked your profile.', 'isMe': false, 'time': '10:00 AM'},
-    {'text': 'Namaste! Thank you so much. Your profile is impressive too! 😊', 'isMe': true, 'time': '10:05 AM'},
-    {'text': 'I saw you studied at IIT Bombay. That is great! What do you do currently?', 'isMe': false, 'time': '10:06 AM'},
-    {'text': 'Yes! Currently working at Google Bengaluru as a Senior Engineer.', 'isMe': true, 'time': '10:10 AM'},
-    {'text': 'That is wonderful. I would love to know more about your family.', 'isMe': false, 'time': '10:12 AM'},
+    {
+      'id': 'm1',
+      'text': 'Hello! 🙏 I saw your profile, really liked it.',
+      'isMe': false, 'time': '10:02 AM', 'status': 'read',
+    },
+    {
+      'id': 'm2',
+      'text': 'Hi! Thank you 😊 Where are you from?',
+      'isMe': true,  'time': '10:04 AM', 'status': 'read',
+    },
+    {
+      'id': 'm3',
+      'text': 'I\'m in Bengaluru, originally from Nagpur. You?',
+      'isMe': false, 'time': '10:05 AM', 'status': 'read',
+    },
+    {
+      'id': 'm4',
+      'text': 'I\'m from Mumbai. You\'re also a Software Engineer? Saw it on your profile.',
+      'isMe': true,  'time': '10:07 AM', 'status': 'read',
+    },
+    {
+      'id': 'm5',
+      'text': 'Yes! Been at TCS for 5 years. What do you do?',
+      'isMe': false, 'time': '10:08 AM', 'status': 'read',
+    },
+    {
+      'id': 'm6',
+      'text': 'I\'m a product manager at a startup in Pune. My family is very traditional — Banjara community.',
+      'isMe': true,  'time': '10:12 AM', 'status': 'read',
+    },
+    {
+      'id': 'm7',
+      'text': 'That\'s great! Our values seem to match 😊 Could we hop on a call this Sunday?',
+      'isMe': false, 'time': '10:15 AM', 'status': 'read',
+    },
+    {
+      'id': 'm8',
+      'text': 'Sure! Sunday it is 😊',
+      'isMe': true,  'time': '10:18 AM', 'status': 'delivered',
+    },
   ];
 
   @override
+  void initState() {
+    super.initState();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ));
+    _msgCtrl.addListener(_onTypingChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  @override
   void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
+    _msgCtrl.removeListener(_onTypingChanged);
+    _msgCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
-  void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
+  void _onTypingChanged() {
+    final typing = _msgCtrl.text.isNotEmpty;
+    if (typing != _isTyping) setState(() => _isTyping = typing);
+  }
 
-    HapticUtils.lightImpact();
-    setState(() {
-      _messages.add({
-        'text': _messageController.text.trim(),
-        'isMe': true,
-        'time': 'Just now',
-      });
-      _messageController.clear();
-    });
-
-    // Scroll to bottom after message sent
-    Future.delayed(const Duration(milliseconds: 100), () {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+  void _scrollToBottom() {
+    if (_scrollCtrl.hasClients) {
+      _scrollCtrl.animateTo(
+        _scrollCtrl.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
+    }
+  }
+
+  void _sendMessage() {
+    final text = _msgCtrl.text.trim();
+    if (text.isEmpty) return;
+    HapticUtils.lightImpact();
+    setState(() {
+      _messages.add({
+        'id': 'm${_messages.length + 1}',
+        'text': text,
+        'isMe': true,
+        'time': _now(),
+        'status': 'sent',
+      });
     });
+    _msgCtrl.clear();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    // TODO: chatProvider.sendMessage(conversationId, text)
+  }
+
+  String _now() {
+    final t = DateTime.now();
+    final h = t.hour > 12 ? t.hour - 12 : (t.hour == 0 ? 12 : t.hour);
+    final m = t.minute.toString().padLeft(2, '0');
+    return '$h:$m ${t.hour >= 12 ? 'PM' : 'AM'}';
   }
 
   @override
   Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
       backgroundColor: AppTheme.bgScaffold,
-      // 🎩 PREMIUM CUSTOM APP BAR
-      appBar: _buildChatAppBar(context),
-
       body: Column(
         children: [
-          // 💬 MESSAGES LIST
+
+          // Header
+          ChatDetailHeader(
+            user: _otherUser,
+            onBackTap: () {
+              HapticUtils.lightImpact();
+              context.pop();
+            },
+            onProfileTap: () {
+              HapticUtils.lightImpact();
+              context.push('/user_detail');
+            },
+            onCallTap: () => HapticUtils.mediumImpact(),
+            onMoreTap: _showMoreOptions,
+          ),
+
+          // Messages
           Expanded(
             child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              controller: _scrollCtrl,
               physics: const BouncingScrollPhysics(),
-              itemCount: _messages.length,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              itemCount: _messages.length + 1,
               itemBuilder: (context, index) {
-                final msg = _messages[index];
-                return _buildMessageBubble(msg, index);
+                if (index == 0) return _DateDivider('Today');
+                final msg = _messages[index - 1];
+                final bool showAvatar = !(msg['isMe'] as bool) &&
+                    (index == _messages.length ||
+                        (_messages[index]['isMe'] as bool));
+                return MessageBubble(
+                  message: msg,
+                  showAvatar: showAvatar,
+                  otherUserImage: _otherUser['image'],
+                );
               },
             ),
           ),
 
-          // ⌨️ INPUT BAR SECTION
-          _buildMessageInput(),
+          // Input
+          ChatInputBar(
+            controller: _msgCtrl,
+            isTyping: _isTyping,
+            bottomPadding: bottomPad,
+            onSend: _sendMessage,
+            onAttachmentTap: () => HapticUtils.lightImpact(),
+          ),
         ],
       ),
     );
   }
 
-  // 📝 WIDGET: Custom Premium App Bar
-  PreferredSizeWidget _buildChatAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      leadingWidth: 40,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.brandDark, size: 20),
-        onPressed: () => context.pop(),
-      ),
-      title: GestureDetector(
-        onTap: () => context.push('/user_detail'),
-        child: Row(
-          children: [
-            Stack(
-              children: [
-                const CustomNetworkImage(
-                  imageUrl: 'https://images.unsplash.com/photo-1583089892943-e02e52f17d50?auto=format&fit=crop&w=400&q=80',
-                  width: 40, height: 40, borderRadius: 20,
-                ),
-                Positioned(
-                  bottom: 0, right: 0,
-                  child: Container(
-                    width: 12, height: 12,
-                    decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Text('Priya Rathod', style: TextStyle(fontFamily: 'Poppins', fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.brandDark)),
-                    SizedBox(width: 4),
-                    Icon(Icons.verified_rounded, color: Colors.blueAccent, size: 14),
-                  ],
-                ),
-                Text('Online', style: TextStyle(fontFamily: 'Poppins', fontSize: 11, color: Colors.green.shade600, fontWeight: FontWeight.w500)),
-              ],
-            ),
-          ],
+  void _showMoreOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-      ),
-      actions: [
-        IconButton(onPressed: () => HapticUtils.lightImpact(), icon: const Icon(Icons.videocam_outlined, color: Colors.grey)),
-        IconButton(onPressed: () => HapticUtils.lightImpact(), icon: const Icon(Icons.call_outlined, color: Colors.grey)),
-        const SizedBox(width: 10),
-      ],
-    );
-  }
-
-  // 📝 WIDGET: Message Bubble Design
-  Widget _buildMessageBubble(Map<String, dynamic> msg, int index) {
-    bool isMe = msg['isMe'];
-    return FadeAnimation(
-      delayInMs: index * 50,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 15),
+        padding: EdgeInsets.fromLTRB(
+          20, 12, 20,
+          24 + MediaQuery.of(context).padding.bottom,
+        ),
         child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              width: 40, height: 4,
               decoration: BoxDecoration(
-                color: isMe ? AppTheme.brandPrimary : Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(20),
-                  topRight: const Radius.circular(20),
-                  bottomLeft: Radius.circular(isMe ? 20 : 5),
-                  bottomRight: Radius.circular(isMe ? 5 : 20),
-                ),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 5))],
-              ),
-              child: Text(
-                msg['text'],
-                style: TextStyle(
-                    fontFamily: 'Poppins', fontSize: 14,
-                    color: isMe ? Colors.white : AppTheme.brandDark,
-                    height: 1.4
-                ),
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(4),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              msg['time'],
-              style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: Colors.grey.shade400),
+            const SizedBox(height: 20),
+            _OptionRow(
+              icon: Icons.person_outline_rounded,
+              label: 'View Profile',
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/user_detail');
+              },
+            ),
+            _OptionRow(
+              icon: Icons.volume_off_rounded,
+              label: 'Mute Chat',
+              onTap: () => Navigator.pop(context),
+            ),
+            _OptionRow(
+              icon: Icons.block_rounded,
+              label: 'Block User',
+              color: Colors.orange.shade600,
+              onTap: () => Navigator.pop(context),
+            ),
+            _OptionRow(
+              icon: Icons.delete_outline_rounded,
+              label: 'Delete Chat',
+              color: Colors.red.shade500,
+              onTap: () => Navigator.pop(context),
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  // 📝 WIDGET: Message Input Bar
-  Widget _buildMessageInput() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -5))],
-      ),
+
+// ── Date divider ──────────────────────────────────────────────
+class _DateDivider extends StatelessWidget {
+  const _DateDivider(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
         children: [
-          // Emoji Button
-          IconButton(onPressed: () {}, icon: const Icon(Icons.emoji_emotions_outlined, color: Colors.grey)),
-
-          // TextField Container
-          Expanded(
+          Expanded(child: Container(height: 1, color: Colors.grey.shade200)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(25)),
-              child: TextField(
-                controller: _messageController,
-                style: const TextStyle(fontFamily: 'Poppins', fontSize: 14),
-                decoration: const InputDecoration(
-                  hintText: 'Type your message...',
-                  border: InputBorder.none,
-                  hintStyle: TextStyle(color: Colors.grey),
-                ),
-                onChanged: (val) => setState(() {}),
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 10),
-
-          // Send Button
-          GestureDetector(
-            onTap: _sendMessage,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: _messageController.text.isEmpty ? Colors.grey.shade300 : AppTheme.brandPrimary,
-                shape: BoxShape.circle,
-                boxShadow: _messageController.text.isEmpty
-                    ? []
-                    : [BoxShadow(color: AppTheme.brandPrimary.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))],
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+              child: Text(label, style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 11,
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.w600,
+              )),
             ),
           ),
+          Expanded(child: Container(height: 1, color: Colors.grey.shade200)),
         ],
       ),
+    );
+  }
+}
+
+
+// ── Option row ────────────────────────────────────────────────
+class _OptionRow extends StatelessWidget {
+  const _OptionRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AppTheme.brandDark;
+    return ListTile(
+      leading: Container(
+        width: 40, height: 40,
+        decoration: BoxDecoration(
+          color: c.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: c, size: 20),
+      ),
+      title: Text(label, style: TextStyle(
+        fontFamily: 'Poppins', fontSize: 14,
+        fontWeight: FontWeight.w600, color: c,
+      )),
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     );
   }
 }

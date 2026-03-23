@@ -1,10 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:async';
-
-// 🚀 GoRouter import kiya hai taaki makkhan ki tarah navigation ho sake
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/haptic_utils.dart';
+import '../../../../shared/animations/fade_animation.dart';
+
+import '../widgets/auth_background.dart';
+import '../widgets/phone_input_field.dart';
+import '../widgets/auth_bottom_text.dart';
+
+// ============================================================
+// 📱 LOGIN SCREEN — Light Warm Theme
+//
+// FLOW:
+//   Phone → OTP → New user: /onboarding | Old user: /dashboard
+//   Guest → /dashboard (3 profiles free)
+//
+// TODO: authProvider.sendOTP(phone)
+// ============================================================
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -12,335 +26,659 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
-  Timer? _timer;
+class _LoginScreenState extends State<LoginScreen>
+    with TickerProviderStateMixin {
 
-  final Color _brandPrimary = const Color(0xFFF23B5F);
-  final Color _brandDark = const Color(0xFF2A2D34);
-  final Color _bgScaffold = const Color(0xFFF4F7FC);
-
+  final TextEditingController _phoneCtrl = TextEditingController();
   final FocusNode _phoneFocus = FocusNode();
-  final TextEditingController _phoneController = TextEditingController();
+  bool _isLoading = false;
+  bool _isValidPhone = false;
 
-  bool _isPhoneValid = false;
-
-  final List<Map<String, String>> _onboardingData = [
-    {
-      "image": "https://images.unsplash.com/photo-1583089892943-e02e52f17d50?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-      "title": "Find Your\nPerfect Match",
-      "subtitle": "Join the most exclusive and trusted Banjara community."
-    },
-    {
-      "image": "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-      "title": "100% Secure\n& Private",
-      "subtitle": "Your data is encrypted, verified, and completely safe with us."
-    },
-    {
-      "image": "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-      "title": "Premium\nExperience",
-      "subtitle": "Get 10x more matches with our smart matchmaking AI."
-    },
-  ];
+  late final AnimationController _entryCtrl;
+  late final AnimationController _btnCtrl;
+  late final Animation<double> _logoOpacity;
+  late final Animation<Offset>  _logoSlide;
+  late final Animation<double> _contentOpacity;
+  late final Animation<Offset>  _contentSlide;
+  late final Animation<double> _btnScale;
 
   @override
   void initState() {
     super.initState();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ));
 
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(statusBarColor: Colors.transparent, statusBarIconBrightness: Brightness.light),
-    );
+    _entryCtrl = AnimationController(vsync: this,
+        duration: const Duration(milliseconds: 900));
+    _btnCtrl = AnimationController(vsync: this,
+        duration: const Duration(milliseconds: 180));
 
-    _timer = Timer.periodic(const Duration(seconds: 4), (Timer timer) {
-      if (!mounted) return;
-      if (_currentPage < _onboardingData.length - 1) {
-        _currentPage++;
-      } else {
-        _currentPage = 0;
-      }
-      if (_pageController.hasClients) {
-        _pageController.animateToPage(
-          _currentPage,
-          duration: const Duration(milliseconds: 1000),
-          curve: Curves.easeInOutCubic,
-        );
-      }
-    });
+    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(parent: _entryCtrl,
+            curve: const Interval(0.0, 0.55, curve: Curves.easeOut)));
+    _logoSlide = Tween<Offset>(begin: const Offset(0, -0.25), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _entryCtrl,
+        curve: const Interval(0.0, 0.65, curve: Curves.easeOutCubic)));
 
-    _phoneFocus.addListener(() => setState(() {}));
+    _contentOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(parent: _entryCtrl,
+            curve: const Interval(0.28, 0.88, curve: Curves.easeOut)));
+    _contentSlide = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _entryCtrl,
+        curve: const Interval(0.28, 1.0, curve: Curves.easeOutCubic)));
 
-    _phoneController.addListener(() {
-      final text = _phoneController.text;
-      if (text.length == 10 && !_isPhoneValid) {
-        HapticFeedback.heavyImpact();
-        setState(() => _isPhoneValid = true);
-      } else if (text.length < 10 && _isPhoneValid) {
-        setState(() => _isPhoneValid = false);
-      }
-    });
+    _btnScale = Tween<double>(begin: 1.0, end: 0.96)
+        .animate(CurvedAnimation(parent: _btnCtrl, curve: Curves.easeIn));
+
+    Future.delayed(const Duration(milliseconds: 80),
+            () { if (mounted) _entryCtrl.forward(); });
+    _phoneCtrl.addListener(_onPhoneChanged);
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _pageController.dispose();
+    _phoneCtrl.removeListener(_onPhoneChanged);
+    _phoneCtrl.dispose();
     _phoneFocus.dispose();
-    _phoneController.dispose();
+    _entryCtrl.dispose();
+    _btnCtrl.dispose();
     super.dispose();
+  }
+
+  void _onPhoneChanged() {
+    final valid = _phoneCtrl.text
+        .replaceAll(RegExp(r'\D'), '').length == 10;
+    if (valid != _isValidPhone) setState(() => _isValidPhone = valid);
+  }
+
+  Future<void> _onSendOTP() async {
+    if (!_isValidPhone || _isLoading) return;
+    HapticUtils.mediumImpact();
+    _phoneFocus.unfocus();
+    setState(() => _isLoading = true);
+    await _btnCtrl.forward();
+    await _btnCtrl.reverse();
+    try {
+      // TODO: authProvider.sendOTP('+91${_phoneCtrl.text.trim()}')
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (!mounted) return;
+      context.push('/otp', extra: _phoneCtrl.text.trim());
+    } catch (_) {
+      if (!mounted) return;
+      _showError('Could not send OTP. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: const TextStyle(
+          fontFamily: 'Poppins', fontWeight: FontWeight.w500)),
+      backgroundColor: AppTheme.error,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      margin: const EdgeInsets.all(16),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    final keyboardH = MediaQuery.of(context).viewInsets.bottom;
 
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        resizeToAvoidBottomInset: false,
-        body: Stack(
-          children: [
-            // ==========================================
-            // 1. TOP HALF: CAROUSEL
-            // ==========================================
-            Positioned(
-              top: 0, left: 0, right: 0,
-              height: screenHeight * 0.58,
-              child: Stack(
-                children: [
-                  PageView.builder(
-                    controller: _pageController,
-                    onPageChanged: (int page) => setState(() => _currentPage = page),
-                    itemCount: _onboardingData.length,
-                    itemBuilder: (context, index) {
-                      return Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          TweenAnimationBuilder<double>(
-                            tween: Tween<double>(begin: _currentPage == index ? 1.0 : 1.15, end: _currentPage == index ? 1.15 : 1.0),
-                            duration: const Duration(seconds: 7),
-                            curve: Curves.linear,
-                            builder: (context, scale, child) {
-                              return Transform.scale(
-                                scale: scale,
-                                child: Image.network(_onboardingData[index]["image"]!, fit: BoxFit.cover),
-                              );
-                            },
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                                colors: [Colors.transparent, Colors.black.withOpacity(0.3), Colors.black.withOpacity(0.8)],
-                                stops: const [0.4, 0.7, 1.0],
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 50, left: 30, right: 30,
-                            child: Column(
-                              children: [
-                                Text(
-                                  _onboardingData[index]["title"]!,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(fontFamily: 'Poppins', fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, height: 1.2, letterSpacing: -0.5),
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  _onboardingData[index]["subtitle"]!,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontFamily: 'Poppins', fontSize: 13, color: Colors.white.withOpacity(0.8), fontWeight: FontWeight.w500),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  Positioned(
-                    bottom: 30, left: 0, right: 0,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        _onboardingData.length,
-                            (index) => AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          height: 6, width: _currentPage == index ? 24 : 6,
-                          decoration: BoxDecoration(
-                            color: _currentPage == index ? _brandPrimary : Colors.white.withOpacity(0.4),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
+    return Scaffold(
+      backgroundColor: const Color(0xFFFDF8F9),
+      resizeToAvoidBottomInset: true,
+      body: Stack(
+        children: [
+          const AuthBackground(),
+          SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                0, 0, 0, keyboardH > 0 ? keyboardH : 0,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: MediaQuery.of(context).size.height
+                      - MediaQuery.of(context).padding.top,
+                ),
+                child: Column(
+                  children: [
+                    _buildLogoSection(),
+                    _buildFormSection(bottomPad),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Logo section — top half ───────────────────────────────
+  Widget _buildLogoSection() {
+    return AnimatedBuilder(
+      animation: _entryCtrl,
+      builder: (_, __) => FadeTransition(
+        opacity: _logoOpacity,
+        child: SlideTransition(
+          position: _logoSlide,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 48, 24, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+
+                // Logo + app name row
+                Row(
+                  children: [
+                    Container(
+                      width: 52, height: 52,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: AppTheme.brandGradient,
+                        boxShadow: AppTheme.primaryGlow,
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.spa_rounded,
+                          color: Colors.white,
+                          size: 26,
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-
-            // ==========================================
-            // 2. BOTTOM HALF: SMART LOGIN PANEL
-            // ==========================================
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutCubic,
-              bottom: bottomInset,
-              left: 0, right: 0,
-              height: screenHeight * 0.45,
-              child: Container(
-                padding: const EdgeInsets.only(left: 30, right: 30, bottom: 20, top: 25),
-                decoration: BoxDecoration(
-                  color: _bgScaffold,
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(40), topRight: Radius.circular(40)),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, -5))],
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Banjara Vivah',
+                          style: TextStyle(
+                            fontFamily: 'Cormorant Garamond',
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.brandDark,
+                            letterSpacing: 0.2,
+                            height: 1.1,
+                          ),
+                        ),
+                        Text(
+                          'Community Matrimony',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 11,
+                            color: Colors.grey.shade500,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
+                const SizedBox(height: 36),
+
+                // Headline
+                const Text(
+                  'Find your\nperfect match.',
+                  style: TextStyle(
+                    fontFamily: 'Cormorant Garamond',
+                    fontSize: 42,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.brandDark,
+                    height: 1.1,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Trusted by 50,000+ Banjara families.',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 13,
+                    color: Colors.grey.shade500,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Trust pills row — equal width
+                IntrinsicHeight(
+                  child: Row(
                     children: [
-                      Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
-                      const SizedBox(height: 25),
-
-                      // 📞 Input Field (Double border fixed 🔥)
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          // 🔥 Outer Premium Border
-                          border: Border.all(
-                              color: _phoneFocus.hasFocus ? _brandPrimary : Colors.grey.shade300,
-                              width: _phoneFocus.hasFocus ? 2.0 : 1.0
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                                color: _phoneFocus.hasFocus ? _brandPrimary.withOpacity(0.1) : Colors.black.withOpacity(0.02),
-                                blurRadius: 15,
-                                offset: const Offset(0, 5)
-                            )
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                              decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
-                              child: Row(
-                                children: [
-                                  const Text('🇮🇳', style: TextStyle(fontSize: 18)),
-                                  const SizedBox(width: 6),
-                                  Text('+91', style: TextStyle(fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.bold, color: _brandDark)),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 15),
-                            Expanded(
-                              child: TextField(
-                                controller: _phoneController,
-                                focusNode: _phoneFocus,
-                                keyboardType: TextInputType.phone,
-                                inputFormatters: [LengthLimitingTextInputFormatter(10), FilteringTextInputFormatter.digitsOnly],
-                                style: TextStyle(fontFamily: 'Poppins', fontSize: 18, color: _brandDark, fontWeight: FontWeight.bold, letterSpacing: 2),
-                                cursorColor: _brandPrimary,
-                                decoration: InputDecoration(
-                                  // 🔥 FIX: Saare internal borders ko forcefully 'none' kar diya
-                                    border: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    enabledBorder: InputBorder.none,
-                                    errorBorder: InputBorder.none,
-                                    disabledBorder: InputBorder.none,
-                                    isDense: true,
-                                    contentPadding: EdgeInsets.zero,
-                                    hintText: 'Mobile Number',
-                                    hintStyle: TextStyle(fontFamily: 'Poppins', fontSize: 14, color: Colors.grey.shade400, letterSpacing: 0, fontWeight: FontWeight.normal)
-                                ),
-                              ),
-                            ),
-                            AnimatedOpacity(
-                              opacity: _isPhoneValid ? 1.0 : 0.0,
-                              duration: const Duration(milliseconds: 300),
-                              child: Padding(
-                                  padding: const EdgeInsets.only(right: 15),
-                                  child: Icon(Icons.check_circle_rounded, color: Colors.green.shade400, size: 20)
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 25),
-
-                      // 🔘 Action Button
-                      GestureDetector(
-                        onTap: () {
-                          if (_isPhoneValid) {
-                            HapticFeedback.heavyImpact();
-                            FocusScope.of(context).unfocus();
-                            context.push('/otp');
-                          } else {
-                            HapticFeedback.vibrate();
-                          }
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic, width: double.infinity, height: 55,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18), color: _isPhoneValid ? _brandPrimary : Colors.grey.shade200,
-                            boxShadow: _isPhoneValid ? [BoxShadow(color: _brandPrimary.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))] : [],
-                          ),
-                          child: Center(
-                              child: Text(
-                                  _isPhoneValid ? 'Get OTP' : 'Enter Number',
-                                  style: TextStyle(fontFamily: 'Poppins', fontSize: 16, fontWeight: FontWeight.bold, color: _isPhoneValid ? Colors.white : Colors.grey.shade400, letterSpacing: 1)
-                              )
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // ➖ Divider & Guest
-                      Row(
-                        children: [
-                          Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
-                          Padding(padding: const EdgeInsets.symmetric(horizontal: 15), child: Text('OR', style: TextStyle(fontFamily: 'Poppins', color: Colors.grey.shade500, fontSize: 12, fontWeight: FontWeight.w600))),
-                          Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // 🕵️ Guest Button
-                      GestureDetector(
-                        onTap: () {
-                          HapticFeedback.mediumImpact();
-                          context.go('/dashboard');
-                        },
-                        child: Container(
-                          width: double.infinity, height: 55,
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: Colors.grey.shade200)),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.explore_rounded, color: Colors.grey.shade600, size: 20),
-                              const SizedBox(width: 10),
-                              Text('Explore App as Guest', style: TextStyle(fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text('By continuing, you agree to our Terms & Privacy Policy.', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: Colors.grey.shade400)),
+                      Expanded(child: _TrustPill(
+                        icon: Icons.verified_rounded,
+                        label: 'Verified Profiles',
+                        color: AppTheme.success,
+                      )),
+                      const SizedBox(width: 10),
+                      Expanded(child: _TrustPill(
+                        icon: Icons.lock_rounded,
+                        label: '100% Private',
+                        color: AppTheme.brandPrimary,
+                      )),
                     ],
                   ),
                 ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Form section — bottom ────────────────────────────────
+  Widget _buildFormSection(double bottomPad) {
+    return AnimatedBuilder(
+      animation: _entryCtrl,
+      builder: (_, __) => FadeTransition(
+        opacity: _contentOpacity,
+        child: SlideTransition(
+          position: _contentSlide,
+          child: Container(
+            margin: const EdgeInsets.only(top: 28),
+            padding: EdgeInsets.fromLTRB(24, 28, 24, 24 + bottomPad),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(32)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.brandPrimary.withValues(alpha: 0.10),
+                  blurRadius: 30,
+                  offset: const Offset(0, -6),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 20,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+
+                // Handle
+                Center(child: Container(
+                  width: 36, height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.brandPrimary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                )),
+                const SizedBox(height: 22),
+
+                // Section title
+                Text('Enter your number', style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.brandDark,
+                  letterSpacing: -0.3,
+                )),
+                const SizedBox(height: 4),
+                Text(
+                  'We\'ll send a one-time code to verify you.',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Phone field
+                FadeAnimation(delayInMs: 320, child: PhoneInputField(
+                  controller: _phoneCtrl,
+                  focusNode: _phoneFocus,
+                  isValid: _isValidPhone,
+                  onSubmitted: (_) => _onSendOTP(),
+                )),
+                const SizedBox(height: 8),
+
+                // Hint text
+                FadeAnimation(delayInMs: 360, child: Padding(
+                  padding: const EdgeInsets.only(left: 2),
+                  child: Text(
+                    _isValidPhone
+                        ? 'Looks good — tap Send OTP ✓'
+                        : 'Enter your 10-digit mobile number',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: _isValidPhone
+                          ? AppTheme.success
+                          : Colors.grey.shade400,
+                    ),
+                  ),
+                )),
+                const SizedBox(height: 22),
+
+                // Send OTP button
+                FadeAnimation(delayInMs: 400, child: _buildOTPBtn()),
+                const SizedBox(height: 14),
+
+                // Divider
+                FadeAnimation(delayInMs: 440, child: Row(children: [
+                  Expanded(child: Divider(
+                      color: Colors.grey.shade200, thickness: 1)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('or', style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 12,
+                      color: Colors.grey.shade400,
+                    )),
+                  ),
+                  Expanded(child: Divider(
+                      color: Colors.grey.shade200, thickness: 1)),
+                ])),
+                const SizedBox(height: 14),
+
+                // Guest button
+                FadeAnimation(delayInMs: 480, child: _buildGuestBtn()),
+                const SizedBox(height: 20),
+
+                // Terms
+                FadeAnimation(delayInMs: 520,
+                    child: const AuthBottomText()),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Buttons ───────────────────────────────────────────────
+  Widget _buildOTPBtn() {
+    return AnimatedBuilder(
+      animation: _btnCtrl,
+      builder: (_, __) => Transform.scale(
+        scale: _btnScale.value,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          width: double.infinity, height: 54,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: _isValidPhone
+                  ? [AppTheme.brandPrimary, const Color(0xFFFF6B84)]
+                  : [Colors.grey.shade200, Colors.grey.shade200],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: _isValidPhone ? AppTheme.primaryGlow : [],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _isValidPhone ? _onSendOTP : null,
+              borderRadius: BorderRadius.circular(16),
+              child: Center(
+                child: _isLoading
+                    ? const SizedBox(width: 22, height: 22,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2.5))
+                    : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Send OTP', style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: _isValidPhone
+                          ? Colors.white
+                          : Colors.grey.shade400,
+                      letterSpacing: 0.2,
+                    )),
+                    if (_isValidPhone) ...[
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_rounded,
+                          color: Colors.white, size: 17),
+                    ],
+                  ],
+                ),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuestBtn() {
+    return GestureDetector(
+      onTap: () {
+        HapticUtils.lightImpact();
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => _GuestSheet(
+            onGuest: () {
+              Navigator.pop(context);
+              HapticUtils.mediumImpact();
+              // TODO: authProvider.setGuestMode(true)
+              context.go('/dashboard');
+            },
+            onLogin: () {
+              Navigator.pop(context);
+              _phoneFocus.requestFocus();
+            },
+          ),
+        );
+      },
+      child: Container(
+        width: double.infinity, height: 50,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.explore_outlined,
+                size: 17, color: Colors.grey.shade500),
+            const SizedBox(width: 8),
+            Text('Explore as Guest', style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+            )),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.brandPrimary.withValues(alpha: 0.09),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text('3 free', style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.brandPrimary,
+              )),
             ),
           ],
         ),
       ),
     );
   }
+}
+
+
+// ── Trust pill ────────────────────────────────────────────────
+class _TrustPill extends StatelessWidget {
+  const _TrustPill({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 5),
+          Text(label, style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: color.withValues(alpha: 0.90),
+          )),
+        ],
+      ),
+    );
+  }
+}
+
+
+// ── Guest bottom sheet ────────────────────────────────────────
+class _GuestSheet extends StatelessWidget {
+  const _GuestSheet({required this.onGuest, required this.onLogin});
+  final VoidCallback onGuest;
+  final VoidCallback onLogin;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+          24, 12, 24, 24 + MediaQuery.of(context).padding.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36, height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(height: 22),
+          Container(
+            width: 60, height: 60,
+            decoration: BoxDecoration(
+              gradient: AppTheme.brandGradient,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: AppTheme.primaryGlow,
+            ),
+            child: const Icon(Icons.explore_rounded,
+                color: Colors.white, size: 28),
+          ),
+          const SizedBox(height: 14),
+          const Text('Guest Mode', style: TextStyle(
+            fontFamily: 'Cormorant Garamond',
+            fontSize: 26, fontWeight: FontWeight.w700,
+            color: AppTheme.brandDark,
+          )),
+          const SizedBox(height: 6),
+          Text(
+            'Explore without signing up —\nbut some features will be limited.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontFamily: 'Poppins', fontSize: 13,
+                color: Colors.grey.shade500, height: 1.5),
+          ),
+          const SizedBox(height: 20),
+          _FeatureRow(icon: Icons.check_circle_rounded,
+              color: AppTheme.success,
+              text: 'View the first 3 profiles in full', ok: true),
+          const SizedBox(height: 10),
+          _FeatureRow(icon: Icons.check_circle_rounded,
+              color: AppTheme.success,
+              text: 'Browse Home and Matches screens', ok: true),
+          const SizedBox(height: 10),
+          _FeatureRow(icon: Icons.lock_rounded,
+              color: Colors.grey.shade400,
+              text: 'Send interests or start a chat', ok: false),
+          const SizedBox(height: 10),
+          _FeatureRow(icon: Icons.lock_rounded,
+              color: Colors.grey.shade400,
+              text: 'Login required after the 4th profile', ok: false),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity, height: 52,
+            child: ElevatedButton(
+              onPressed: onGuest,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.brandPrimary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+              child: const Text('Explore — 3 profiles free',
+                  style: TextStyle(fontFamily: 'Poppins',
+                      fontSize: 14, fontWeight: FontWeight.w700)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: onLogin,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Want to sign in instead? ',
+                      style: TextStyle(fontFamily: 'Poppins',
+                          fontSize: 13, color: Colors.grey.shade500)),
+                  const Text('Enter number', style: TextStyle(
+                    fontFamily: 'Poppins', fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.brandPrimary,
+                  )),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeatureRow extends StatelessWidget {
+  const _FeatureRow({required this.icon, required this.color,
+    required this.text, required this.ok});
+  final IconData icon;
+  final Color color;
+  final String text;
+  final bool ok;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, color: color, size: 18),
+      const SizedBox(width: 10),
+      Expanded(child: Text(text, style: TextStyle(
+        fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w500,
+        color: ok ? AppTheme.brandDark : Colors.grey.shade400,
+      ))),
+    ],
+  );
 }
