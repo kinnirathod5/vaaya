@@ -12,9 +12,15 @@ import '../theme/app_theme.dart';
 //   CustomToast.info(context, 'OTP sent to your number.');
 //   CustomToast.warning(context, 'Please complete your profile.');
 //   CustomToast.premium(context, 'Upgrade to send more interests.');
+//   CustomToast.action(
+//     context,
+//     message: 'Interest sent!',
+//     actionLabel: 'Undo',
+//     onAction: () { ... },
+//   );
 // ============================================================
 class CustomToast {
-  CustomToast._(); // Private constructor — no instances
+  CustomToast._();
 
   // ── Public API ────────────────────────────────────────────
 
@@ -37,6 +43,7 @@ class CustomToast {
       message: message,
       bgColor: AppTheme.error,
       icon: Icons.error_outline_rounded,
+      duration: const Duration(seconds: 3),
     );
   }
 
@@ -74,15 +81,100 @@ class CustomToast {
     );
   }
 
+  /// Match celebration — mutual match confirmed
+  static void match(BuildContext context, String name) {
+    HapticFeedback.heavyImpact();
+    _show(
+      context,
+      message: '🎉  It\'s a match with $name!',
+      bgColor: AppTheme.brandPrimary,
+      icon: Icons.favorite_rounded,
+      duration: const Duration(seconds: 3),
+    );
+  }
+
+  /// Interest sent — with emoji feel
+  static void interestSent(BuildContext context, String name) {
+    HapticFeedback.mediumImpact();
+    _show(
+      context,
+      message: '🌸  Interest sent to $name!',
+      bgColor: AppTheme.brandPrimary,
+      icon: Icons.send_rounded,
+    );
+  }
+
+  /// Toast with an action button (e.g. Undo, View)
+  static void action(
+      BuildContext context, {
+        required String message,
+        required String actionLabel,
+        required VoidCallback onAction,
+        Color bgColor = AppTheme.brandDark,
+        IconData icon = Icons.info_outline_rounded,
+      }) {
+    HapticFeedback.lightImpact();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        elevation: 0,
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.transparent,
+        duration: const Duration(seconds: 3),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        content: Container(
+          padding: const EdgeInsets.fromLTRB(16, 13, 8, 13),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: bgColor.withValues(alpha: 0.30),
+                blurRadius: 16, offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(message, style: const TextStyle(
+                  fontFamily: 'Poppins', color: Colors.white,
+                  fontSize: 12, fontWeight: FontWeight.w600, height: 1.4,
+                )),
+              ),
+              GestureDetector(
+                onTap: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  onAction();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.20),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(actionLabel, style: const TextStyle(
+                    fontFamily: 'Poppins', color: Colors.white,
+                    fontSize: 12, fontWeight: FontWeight.w800,
+                  )),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ── Backward-compatible aliases ───────────────────────────
-  // Old code used showSuccess / showError — keep working
   static void showSuccess(BuildContext context, String message) =>
       success(context, message);
-
   static void showError(BuildContext context, String message) =>
       error(context, message);
 
-  // ── Core builder ─────────────────────────────────────────
+  // ── Core builder ──────────────────────────────────────────
   static void _show(
       BuildContext context, {
         required String message,
@@ -90,9 +182,7 @@ class CustomToast {
         required IconData icon,
         Duration duration = const Duration(seconds: 2),
       }) {
-    // Dismiss any existing toast before showing new one
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         elevation: 0,
@@ -108,26 +198,19 @@ class CustomToast {
             boxShadow: [
               BoxShadow(
                 color: bgColor.withValues(alpha: 0.35),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+                blurRadius: 16, offset: const Offset(0, 6),
               ),
             ],
           ),
           child: Row(
             children: [
-              Icon(icon, color: Colors.white, size: 22),
+              Icon(icon, color: Colors.white, size: 20),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  message,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    height: 1.4,
-                  ),
-                ),
+                child: Text(message, style: const TextStyle(
+                  fontFamily: 'Poppins', color: Colors.white,
+                  fontSize: 13, fontWeight: FontWeight.w600, height: 1.4,
+                )),
               ),
             ],
           ),

@@ -60,27 +60,13 @@ class PremiumListTile extends StatefulWidget {
   final String? subtitle;
   final IconData leadingIcon;
   final VoidCallback? onTap;
-
-  /// Icon background color — defaults to brandPrimary
   final Color? iconColor;
-
-  /// Tile behavior variant
   final TileVariant variant;
-
-  /// Text shown on the right side (e.g. current value, version)
   final String? trailingValue;
-
-  /// Color of the trailing value text
   final Color? trailingValueColor;
-
-  /// Current toggle state — used with TileVariant.toggle
   final bool toggleValue;
   final ValueChanged<bool>? onToggleChanged;
-
-  /// Show a bottom divider instead of card margin
   final bool showDivider;
-
-  /// Override outer margin (default: bottom 12)
   final EdgeInsets? margin;
 
   @override
@@ -92,7 +78,6 @@ class _PremiumListTileState extends State<PremiumListTile>
 
   late final AnimationController _pressCtrl;
   late final Animation<double> _pressAnim;
-  bool _isPressed = false;
 
   @override
   void initState() {
@@ -124,30 +109,15 @@ class _PremiumListTileState extends State<PremiumListTile>
           : AppTheme.brandDark;
 
   bool get _isTappable =>
-      widget.variant != TileVariant.info && widget.onTap != null ||
-          widget.variant == TileVariant.toggle;
+      widget.variant == TileVariant.toggle ||
+          (widget.variant != TileVariant.info && widget.onTap != null);
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: _isTappable
-          ? (_) {
-        setState(() => _isPressed = true);
-        _pressCtrl.forward();
-      }
-          : null,
-      onTapUp: _isTappable
-          ? (_) {
-        setState(() => _isPressed = false);
-        _pressCtrl.reverse();
-      }
-          : null,
-      onTapCancel: _isTappable
-          ? () {
-        setState(() => _isPressed = false);
-        _pressCtrl.reverse();
-      }
-          : null,
+      onTapDown: _isTappable ? (_) => _pressCtrl.forward() : null,
+      onTapUp: _isTappable ? (_) => _pressCtrl.reverse() : null,
+      onTapCancel: _isTappable ? () => _pressCtrl.reverse() : null,
       onTap: _isTappable
           ? () {
         if (widget.variant == TileVariant.toggle) {
@@ -176,7 +146,6 @@ class _PremiumListTileState extends State<PremiumListTile>
           ),
           child: Row(
             children: [
-
               // ── Leading icon ──────────────────────────
               Container(
                 width: 40, height: 40,
@@ -280,10 +249,11 @@ class _PremiumListTileState extends State<PremiumListTile>
               ),
               const SizedBox(width: 4),
             ],
+            // ✅ Fixed: shade350 doesn't exist — use shade300
             Icon(
               Icons.arrow_forward_ios_rounded,
               size: 12,
-              color: Colors.grey.shade350 ?? Colors.grey.shade400,
+              color: Colors.grey.shade300,
             ),
           ],
         );

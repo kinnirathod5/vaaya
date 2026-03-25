@@ -7,11 +7,12 @@ import '../../core/utils/haptic_utils.dart';
 // Main action button used across all screens.
 //
 // Variants:
-//   ButtonVariant.filled   → solid brand color (default)
+//   ButtonVariant.filled   → solid brand gradient (default)
 //   ButtonVariant.outlined → border only, transparent fill
-//   ButtonVariant.ghost    → no border, no fill — text only
+//   ButtonVariant.ghost    → light brand tint, no border
 //   ButtonVariant.dark     → dark cinematic — premium screens
 //   ButtonVariant.gold     → gold gradient — VIP / upgrade CTAs
+//   ButtonVariant.success  → green — confirmed / saved states
 //
 // Usage:
 //   PrimaryButton(text: 'Continue', onTap: _next)
@@ -28,9 +29,15 @@ import '../../core/utils/haptic_utils.dart';
 //     variant: ButtonVariant.gold,
 //     onTap: () => context.push('/premium'),
 //   )
+//
+//   PrimaryButton(
+//     text: 'Profile Saved',
+//     variant: ButtonVariant.success,
+//     onTap: null,
+//   )
 // ============================================================
 
-enum ButtonVariant { filled, outlined, ghost, dark, gold }
+enum ButtonVariant { filled, outlined, ghost, dark, gold, success }
 
 class PrimaryButton extends StatefulWidget {
   const PrimaryButton({
@@ -41,6 +48,7 @@ class PrimaryButton extends StatefulWidget {
     this.isLoading = false,
     this.variant = ButtonVariant.filled,
     this.icon,
+    this.trailingIcon,
     this.height = 54,
     this.width,
     this.fontSize = 15,
@@ -64,6 +72,9 @@ class PrimaryButton extends StatefulWidget {
 
   /// Optional leading icon
   final IconData? icon;
+
+  /// Optional trailing icon (e.g. arrow)
+  final IconData? trailingIcon;
 
   final double height;
   final double? width;
@@ -101,8 +112,7 @@ class _PrimaryButtonState extends State<PrimaryButton>
   bool get _interactive =>
       widget.isEnabled && !widget.isLoading && widget.onTap != null;
 
-  // ── Colors per variant ────────────────────────────────────
-
+  // ── Decoration per variant ────────────────────────────────
   Decoration _decoration() {
     if (!_interactive) {
       return BoxDecoration(
@@ -116,23 +126,14 @@ class _PrimaryButtonState extends State<PrimaryButton>
         return BoxDecoration(
           gradient: AppTheme.brandGradient,
           borderRadius: BorderRadius.circular(widget.borderRadius),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.brandPrimary.withValues(alpha: 0.28),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          boxShadow: AppTheme.primaryGlow,
         );
 
       case ButtonVariant.outlined:
         return BoxDecoration(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(widget.borderRadius),
-          border: Border.all(
-            color: AppTheme.brandPrimary,
-            width: 2,
-          ),
+          border: Border.all(color: AppTheme.brandPrimary, width: 2),
         );
 
       case ButtonVariant.ghost:
@@ -145,14 +146,11 @@ class _PrimaryButtonState extends State<PrimaryButton>
         return BoxDecoration(
           gradient: AppTheme.darkGradient,
           borderRadius: BorderRadius.circular(widget.borderRadius),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.08),
-          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
+              blurRadius: 14, offset: const Offset(0, 6),
             ),
           ],
         );
@@ -163,6 +161,18 @@ class _PrimaryButtonState extends State<PrimaryButton>
           borderRadius: BorderRadius.circular(widget.borderRadius),
           boxShadow: AppTheme.goldGlow,
         );
+
+      case ButtonVariant.success:
+        return BoxDecoration(
+          color: AppTheme.success,
+          borderRadius: BorderRadius.circular(widget.borderRadius),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.success.withValues(alpha: 0.28),
+              blurRadius: 14, offset: const Offset(0, 6),
+            ),
+          ],
+        );
     }
   }
 
@@ -172,6 +182,7 @@ class _PrimaryButtonState extends State<PrimaryButton>
       case ButtonVariant.filled:
       case ButtonVariant.dark:
       case ButtonVariant.gold:
+      case ButtonVariant.success:
         return Colors.white;
       case ButtonVariant.outlined:
       case ButtonVariant.ghost:
@@ -208,20 +219,14 @@ class _PrimaryButtonState extends State<PrimaryButton>
               width: 22, height: 22,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  _textColor(),
-                ),
+                valueColor: AlwaysStoppedAnimation<Color>(_textColor()),
               ),
             )
                 : Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (widget.icon != null) ...[
-                  Icon(
-                    widget.icon,
-                    color: _textColor(),
-                    size: 18,
-                  ),
+                  Icon(widget.icon, color: _textColor(), size: 18),
                   const SizedBox(width: 8),
                 ],
                 Text(
@@ -234,6 +239,10 @@ class _PrimaryButtonState extends State<PrimaryButton>
                     letterSpacing: 0.2,
                   ),
                 ),
+                if (widget.trailingIcon != null) ...[
+                  const SizedBox(width: 6),
+                  Icon(widget.trailingIcon, color: _textColor(), size: 16),
+                ],
               ],
             ),
           ),

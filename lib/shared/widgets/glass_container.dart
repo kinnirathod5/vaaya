@@ -8,10 +8,11 @@ import '../../core/theme/app_theme.dart';
 // Used for overlays, badges, cards on photo backgrounds.
 //
 // Variants:
-//   GlassVariant.light  → white tint — on dark backgrounds (default)
-//   GlassVariant.dark   → black tint — on light backgrounds
-//   GlassVariant.brand  → brand pink tint — active/selected states
-//   GlassVariant.gold   → gold tint — premium sections
+//   GlassVariant.light   → white tint — on dark backgrounds (default)
+//   GlassVariant.dark    → black tint — on light backgrounds
+//   GlassVariant.brand   → brand pink tint — active/selected states
+//   GlassVariant.gold    → gold tint — premium sections
+//   GlassVariant.success → green tint — verified/confirmed states
 //
 // Usage:
 //   GlassContainer(child: Text('98% match'))
@@ -20,11 +21,21 @@ import '../../core/theme/app_theme.dart';
 //     variant: GlassVariant.dark,
 //     blur: 14,
 //     padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+//     borderRadius: BorderRadius.circular(10),
 //     child: Row(children: [...]),
+//   )
+//
+//   // Pill badge on photo
+//   GlassContainer(
+//     blur: 8,
+//     opacity: 0.30,
+//     padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+//     borderRadius: BorderRadius.circular(20),
+//     child: Text('Active now'),
 //   )
 // ============================================================
 
-enum GlassVariant { light, dark, brand, gold }
+enum GlassVariant { light, dark, brand, gold, success }
 
 class GlassContainer extends StatelessWidget {
   const GlassContainer({
@@ -54,13 +65,13 @@ class GlassContainer extends StatelessWidget {
   final BorderRadiusGeometry? borderRadius;
   final EdgeInsetsGeometry? padding;
 
-  /// Show a subtle white/colored border (default: true)
+  /// Show a subtle border (default: true)
   final bool showBorder;
 
   final double? width;
   final double? height;
 
-  // ── Tint color per variant ────────────────────────────────
+  // ── Tint color ────────────────────────────────────────────
   Color get _tintColor {
     switch (variant) {
       case GlassVariant.light:
@@ -71,6 +82,8 @@ class GlassContainer extends StatelessWidget {
         return AppTheme.brandPrimary.withValues(alpha: opacity);
       case GlassVariant.gold:
         return AppTheme.goldPrimary.withValues(alpha: opacity);
+      case GlassVariant.success:
+        return AppTheme.success.withValues(alpha: opacity);
     }
   }
 
@@ -84,6 +97,8 @@ class GlassContainer extends StatelessWidget {
         return AppTheme.brandPrimary.withValues(alpha: 0.30);
       case GlassVariant.gold:
         return AppTheme.goldPrimary.withValues(alpha: 0.40);
+      case GlassVariant.success:
+        return AppTheme.success.withValues(alpha: 0.35);
     }
   }
 
