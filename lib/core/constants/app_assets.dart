@@ -6,6 +6,9 @@
 // Usage:
 //   CustomNetworkImage(imageUrl: AppAssets.dummyFemale1)
 //   Image.asset(AppAssets.appLogo)
+//
+// v2.0 FIX: dummyFemale3 was a boat/yacht image — replaced
+//           with actual female portrait URL.
 // ============================================================
 class AppAssets {
   AppAssets._(); // Private constructor — no instances
@@ -19,8 +22,9 @@ class AppAssets {
       'https://images.unsplash.com/photo-1583089892943-e02e52f17d50?auto=format&fit=crop&w=800&q=80';
   static const String dummyFemale2 =
       'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=800&q=80';
+  // FIX: was photo-1605281317010 (boat/yacht) — replaced with female portrait
   static const String dummyFemale3 =
-      'https://images.unsplash.com/photo-1605281317010-fe5ffe798166?auto=format&fit=crop&w=800&q=80';
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80';
   static const String dummyFemale4 =
       'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=800&q=80';
   static const String dummyFemale5 =
