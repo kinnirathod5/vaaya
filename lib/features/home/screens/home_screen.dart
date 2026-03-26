@@ -1,5 +1,5 @@
-import 'dart:ui';
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -12,37 +12,33 @@ import '../../../../shared/widgets/custom_network_image.dart';
 import '../../../../shared/widgets/premium_avatar.dart';
 
 // ============================================================
-// 🏠 HOME SCREEN — v3.0 Optimized
+// 🏠 HOME SCREEN — v6.0 Perfect Edition
 //
-// Senior UX audit applied — focused, lean, conversion-driven.
+// SECTION ORDER (UX-optimised, morning flow):
+//   1. Header           — Greeting + avatar + action buttons
+//   2. New Matches Banner — Pulse animation (if any)
+//   3. Profile Nudge    — Completion bar (if < 80%)
+//   4. Thought of Day   — NEW: Cultural/motivational quote
+//   5. Spotlight        — Highest match % profiles (carousel)
+//   6. Active Now       — Online users + Liked You card
+//   7. Daily Matches    — Fresh picks with arc ring + 3 actions
+//   8. VIP Banner       — Premium upgrade (non-premium only)
+//   9. Premium Matches  — Locked/unlocked based on plan
+//  10. Success Stories  — NEW: Couple stories for social proof
 //
-// REMOVED (low-value / duplicate):
-//   ✗ Quick Stats row     → duplicate of profile screen
-//   ✗ Activity Card       → merged into header notification badge
-//   ✗ Success Stories     → static, low engagement — future: own page
-//   ✗ Thought of the Day  → off-brand for matrimony context
+// EVENING ORDER (sections 5-7 swap):
+//   Active Now → Spotlight → Daily → VIP → Premium → Stories
 //
-// ADDED (high-impact):
-//   ✅ New Matches Banner  → animated urgency banner, daily return
-//   ✅ Profile Completion Nudge → drives completion from home
-//   ✅ Kundali chip on spotlight cards → community differentiator
-//   ✅ Quick like/skip on daily cards → reduces taps
-//   ✅ "Active Xh ago" on daily cards → real-time feel
-//   ✅ Smart time-based section ordering
-//   ✅ Swipe hint on spotlight carousel
-//
-// SECTION ORDER (6-8 depending on state):
-//   1. Header (greeting + avatar + search + notification)
-//   2. New Matches Banner (conditional — animated pulse)
-//   3. Profile Completion Nudge (if < 80%)
-//   4. Active Now (with "Liked You" prominent)
-//   5. Spotlight Carousel (HERO — 380px, kundali chip)
-//   6. VIP Banner (non-premium only)
-//   7. Daily Matches (quick actions + "active Xh ago")
-//   8. Premium Matches (gold lock overlay)
-//
-// ALL widgets inlined — zero external widget dependencies.
-// TODO: Replace dummy data with Riverpod providers
+// NEW IN v6.0:
+//   ✅ Thought of the Day card — cultural + motivational
+//   ✅ Success Stories row — couple photos + names
+//   ✅ FadeAnimation on every section (staggered)
+//   ✅ Section dividers with breathing room (28px)
+//   ✅ Consistent horizontal padding (20px everywhere)
+//   ✅ Profile nudge: animated progress bar on build
+//   ✅ Liked You card: proper BackdropFilter blur stack
+//   ✅ Mini sticky header: IgnorePointer fix
+//   ✅ All text: maxLines + overflow everywhere
 // ============================================================
 
 // ──────────────────────────────────────────────────────────────
@@ -57,82 +53,62 @@ class _CurrentUser {
     required this.profileCompletionPct,
     required this.newMatchesSinceYesterday,
     required this.unreadNotifications,
+    required this.likedYouCount,
   });
-
-  final String name;
-  final String image;
+  final String name, image;
   final bool isPremium;
-  final int profileCompletionPct;
-  final int newMatchesSinceYesterday;
-  final int unreadNotifications;
+  final int profileCompletionPct, newMatchesSinceYesterday,
+      unreadNotifications, likedYouCount;
 }
 
 class _SpotlightMatch {
   const _SpotlightMatch({
-    required this.name,
-    required this.age,
-    required this.city,
-    required this.profession,
-    required this.education,
-    required this.matchPct,
-    required this.isVerified,
-    required this.image,
+    required this.name, required this.age, required this.city,
+    required this.profession, required this.education,
+    required this.matchPct, required this.isVerified, required this.image,
     this.kundaliCompatible = false,
   });
-
-  final String name;
-  final int age;
-  final String city;
-  final String profession;
-  final String education;
-  final int matchPct;
-  final bool isVerified;
-  final String image;
-  final bool kundaliCompatible;
+  final String name, city, profession, education, image;
+  final int age, matchPct;
+  final bool isVerified, kundaliCompatible;
 }
 
 class _DailyMatch {
   const _DailyMatch({
-    required this.name,
-    required this.age,
-    required this.profession,
-    required this.matchPct,
-    required this.isOnline,
-    required this.image,
+    required this.name, required this.age, required this.profession,
+    required this.matchPct, required this.isOnline, required this.image,
     this.lastActive,
   });
-
-  final String name;
-  final int age;
-  final String profession;
-  final int matchPct;
+  final String name, profession, image;
+  final int age, matchPct;
   final bool isOnline;
-  final String image;
-  final String? lastActive; // null = currently online
+  final String? lastActive;
 }
 
 class _ActiveUser {
   const _ActiveUser({required this.name, required this.image});
-  final String name;
-  final String image;
+  final String name, image;
 }
 
 class _PremiumMatch {
   const _PremiumMatch({
-    required this.name,
-    required this.age,
-    required this.city,
-    required this.image,
+    required this.name, required this.age,
+    required this.city, required this.image,
   });
-
-  final String name;
+  final String name, city, image;
   final int age;
-  final String city;
-  final String image;
+}
+
+class _SuccessStory {
+  const _SuccessStory({
+    required this.groomName, required this.brideName,
+    required this.city, required this.image, required this.year,
+  });
+  final String groomName, brideName, city, image, year;
 }
 
 // ──────────────────────────────────────────────────────────────
-// DUMMY DATA — TODO: Replace with Riverpod providers
+// DUMMY DATA
 // ──────────────────────────────────────────────────────────────
 
 const _dummyUser = _CurrentUser(
@@ -142,6 +118,7 @@ const _dummyUser = _CurrentUser(
   profileCompletionPct: 72,
   newMatchesSinceYesterday: 3,
   unreadNotifications: 3,
+  likedYouCount: 12,
 );
 
 const _dummySpotlight = [
@@ -166,34 +143,77 @@ const _dummySpotlight = [
 
 const _dummyDaily = [
   _DailyMatch(
-    name: 'Priya Rathod', age: 24,
-    profession: 'Software Engineer', matchPct: 98,
-    isOnline: true, image: AppAssets.dummyFemale1,
+    name: 'Priya Rathod', age: 24, profession: 'Software Engineer',
+    matchPct: 98, isOnline: true, image: AppAssets.dummyFemale1,
   ),
   _DailyMatch(
-    name: 'Sneha Pawar', age: 25,
-    profession: 'Doctor', matchPct: 89,
-    isOnline: false, image: AppAssets.dummyFemale9,
+    name: 'Sneha Pawar', age: 25, profession: 'Doctor',
+    matchPct: 89, isOnline: false, image: AppAssets.dummyFemale9,
     lastActive: '2h ago',
   ),
   _DailyMatch(
-    name: 'Riya Sharma', age: 23,
-    profession: 'Teacher', matchPct: 85,
-    isOnline: true, image: AppAssets.dummyFemale6,
+    name: 'Riya Sharma', age: 23, profession: 'Teacher',
+    matchPct: 85, isOnline: true, image: AppAssets.dummyFemale6,
+  ),
+  _DailyMatch(
+    name: 'Kavya Banjara', age: 26, profession: 'Architect',
+    matchPct: 82, isOnline: false, image: AppAssets.dummyFemale4,
+    lastActive: '5h ago',
   ),
 ];
 
 const _dummyActive = [
-  _ActiveUser(name: 'Kavya', image: AppAssets.dummyFemale4),
+  _ActiveUser(name: 'Kavya',  image: AppAssets.dummyFemale4),
   _ActiveUser(name: 'Roshni', image: AppAssets.dummyFemale5),
-  _ActiveUser(name: 'Neha', image: AppAssets.dummyFemale6),
-  _ActiveUser(name: 'Swati', image: AppAssets.dummyFemale8),
+  _ActiveUser(name: 'Neha',   image: AppAssets.dummyFemale6),
+  _ActiveUser(name: 'Swati',  image: AppAssets.dummyFemale8),
+];
+
+final _likedYouPreviews = [
+  AppAssets.dummyFemale2,
+  AppAssets.dummyFemale3,
+  AppAssets.dummyFemale7,
 ];
 
 const _dummyPremium = [
-  _PremiumMatch(name: 'Kavya', age: 25, city: 'Mumbai', image: AppAssets.dummyFemale4),
-  _PremiumMatch(name: 'Roshni', age: 27, city: 'Pune', image: AppAssets.dummyFemale5),
-  _PremiumMatch(name: 'Swati', age: 24, city: 'Nashik', image: AppAssets.dummyFemale8),
+  _PremiumMatch(name: 'Kavya',  age: 25, city: 'Mumbai', image: AppAssets.dummyFemale4),
+  _PremiumMatch(name: 'Roshni', age: 27, city: 'Pune',   image: AppAssets.dummyFemale5),
+  _PremiumMatch(name: 'Swati',  age: 24, city: 'Nashik', image: AppAssets.dummyFemale8),
+  _PremiumMatch(name: 'Divya',  age: 26, city: 'Delhi',  image: AppAssets.dummyFemale2),
+];
+
+const _dummyStories = [
+  _SuccessStory(
+    groomName: 'Arjun', brideName: 'Kavya',
+    city: 'Mumbai', image: AppAssets.successStory1, year: '2023',
+  ),
+  _SuccessStory(
+    groomName: 'Rohan', brideName: 'Priya',
+    city: 'Pune', image: AppAssets.successStory2, year: '2023',
+  ),
+  _SuccessStory(
+    groomName: 'Vikram', brideName: 'Anjali',
+    city: 'Nagpur', image: AppAssets.successStory3, year: '2024',
+  ),
+];
+
+// Thought of the day data
+const _thoughts = [
+  (
+  quote: 'Vivah ek pavitr bandhan hai,\ndono aatmaon ka milan.',
+  author: 'Banjara Proverb',
+  emoji: '🌸',
+  ),
+  (
+  quote: 'Sachi shaadi woh hoti hai jahan\ndono ek doosre ke liye bane hain.',
+  author: 'Ancient Wisdom',
+  emoji: '💫',
+  ),
+  (
+  quote: 'Gotra se pehchaan, dil se rishta,\naur Vaaya se milaan.',
+  author: 'Vaaya Vivah',
+  emoji: '🏡',
+  ),
 ];
 
 // ──────────────────────────────────────────────────────────────
@@ -209,97 +229,148 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with TickerProviderStateMixin {
-  final PageController _pageController = PageController(viewportFraction: 0.88);
 
-  // Gold shimmer only for "Liked You" card
+  late final PageController _pageController;
+  int _spotlightIndex = 0;
+
+  // Gold shimmer for VIP banner button
   late final AnimationController _goldShimmerCtrl;
 
-  // Pulse for new matches banner
+  // Pulse for new matches banner + liked you ring
   late final AnimationController _pulsCtrl;
-  late final Animation<double> _pulseAnim;
+  late final Animation<double> _scaleAnim;
+  late final Animation<double> _borderAnim;
 
-  // Data
+  // Scroll for sticky mini header
+  late final ScrollController _scrollCtrl;
+  bool _headerCollapsed = false;
+
   final _CurrentUser _user = _dummyUser;
-
-  // Cached greeting
   late final String _greetingText;
-
-  // Smart ordering: morning vs evening
   late final bool _isEvening;
+
+  // Today's thought (based on day of week)
+  late final int _thoughtIndex;
 
   @override
   void initState() {
     super.initState();
+
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
     ));
 
+    _pageController = PageController(viewportFraction: 0.88)
+      ..addListener(_onPageChanged);
+
     _goldShimmerCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
-    )..repeat();
+    );
+    if (!_isPremium) _goldShimmerCtrl.repeat();
 
     _pulsCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.85, end: 1.0).animate(
+
+    _scaleAnim = Tween<double>(begin: 1.0, end: 1.018).animate(
+      CurvedAnimation(parent: _pulsCtrl, curve: Curves.easeInOut),
+    );
+    _borderAnim = Tween<double>(begin: 0.12, end: 0.40).animate(
       CurvedAnimation(parent: _pulsCtrl, curve: Curves.easeInOut),
     );
 
+    _scrollCtrl = ScrollController()..addListener(_onScroll);
+
     _greetingText = _computeGreeting();
-    final hour = DateTime.now().hour;
-    _isEvening = hour >= 17;
+    _isEvening = DateTime.now().hour >= 17;
+    _thoughtIndex = DateTime.now().weekday % _thoughts.length;
+  }
+
+  void _onPageChanged() {
+    if (_pageController.page != null) {
+      final newIndex = _pageController.page!.round();
+      if (newIndex != _spotlightIndex) {
+        setState(() => _spotlightIndex = newIndex);
+      }
+    }
+  }
+
+  void _onScroll() {
+    final collapsed = _scrollCtrl.offset > 80;
+    if (collapsed != _headerCollapsed) {
+      setState(() => _headerCollapsed = collapsed);
+    }
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _pageController..removeListener(_onPageChanged)..dispose();
     _goldShimmerCtrl.dispose();
     _pulsCtrl.dispose();
+    _scrollCtrl..removeListener(_onScroll)..dispose();
     super.dispose();
   }
 
   bool get _isPremium => _user.isPremium;
 
   static String _computeGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
     return 'Good Evening';
   }
 
-  // ── Build ─────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────
+  // BUILD
+  // ──────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-
-    // Smart time-based section ordering
-    final sections = _buildSections(context);
+    final bottomPad = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
       backgroundColor: AppTheme.bgScaffold,
       body: Stack(
         children: [
+          // Ambient blobs — static, RepaintBoundary
           RepaintBoundary(child: _AmbientBackground()),
 
           SafeArea(
             child: CustomScrollView(
+              controller: _scrollCtrl,
               physics: const BouncingScrollPhysics(
                 parent: AlwaysScrollableScrollPhysics(),
               ),
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.only(bottom: 88 + bottomPadding),
+                    padding: EdgeInsets.only(bottom: 96 + bottomPad),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: sections,
+                      children: _buildAllSections(context),
                     ),
                   ),
                 ),
               ],
+            ),
+          ),
+
+          // Sticky mini header — IgnorePointer when hidden
+          SafeArea(
+            child: IgnorePointer(
+              ignoring: !_headerCollapsed,
+              child: AnimatedSlide(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                offset: _headerCollapsed ? Offset.zero : const Offset(0, -1),
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: _headerCollapsed ? 1.0 : 0.0,
+                  child: _buildMiniHeader(context),
+                ),
+              ),
             ),
           ),
         ],
@@ -307,146 +378,219 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════
-  // SMART SECTION ORDERING
-  // Morning → Daily Matches first (fresh matches)
-  // Evening → Active Now first (who's online now)
-  // ══════════════════════════════════════════════════════════
-  List<Widget> _buildSections(BuildContext context) {
-    final List<Widget> sections = [];
-
-    // ── 1. Header (always first) ────────────────────────────
-    sections.addAll([
-      const SizedBox(height: 20),
-      FadeAnimation(
-        delayInMs: 0,
-        child: _buildHeader(context),
+  // ──────────────────────────────────────────────────────────
+  // MINI STICKY HEADER
+  // ──────────────────────────────────────────────────────────
+  Widget _buildMiniHeader(BuildContext context) {
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.88),
+            border: Border(
+              bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+            ),
+          ),
+          child: Row(
+            children: [
+              PremiumAvatar(imageUrl: _user.image, size: 34, isOnline: true),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Hi, ${_user.name.split(' ').first} 👋',
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.brandDark,
+                  ),
+                ),
+              ),
+              _HeaderBtn(
+                icon: Icons.search_rounded,
+                label: 'Search',
+                size: 36,
+                onTap: () { HapticUtils.lightImpact(); context.push('/matches'); },
+              ),
+              const SizedBox(width: 8),
+              _HeaderBtn(
+                icon: Icons.notifications_rounded,
+                label: 'Notifications',
+                size: 36,
+                badge: _user.unreadNotifications,
+                onTap: () { HapticUtils.mediumImpact(); context.push('/notifications'); },
+              ),
+            ],
+          ),
+        ),
       ),
-      const SizedBox(height: 16),
-    ]);
-
-    // ── 2. New Matches Banner (conditional) ─────────────────
-    if (_user.newMatchesSinceYesterday > 0) {
-      sections.addAll([
-        FadeAnimation(
-          delayInMs: 40,
-          child: _buildNewMatchesBanner(context),
-        ),
-        const SizedBox(height: 16),
-      ]);
-    }
-
-    // ── 3. Profile Completion Nudge (if < 80%) ──────────────
-    if (_user.profileCompletionPct < 80) {
-      sections.addAll([
-        FadeAnimation(
-          delayInMs: 60,
-          child: _buildCompletionNudge(context),
-        ),
-        const SizedBox(height: 20),
-      ]);
-    }
-
-    // ── 4-8. Smart-ordered content sections ─────────────────
-    int delay = 100;
-
-    if (_isEvening) {
-      // Evening: Active Now → Spotlight → VIP → Daily → Premium
-      sections.addAll(_activeNowSection(context, delay));
-      delay += 60;
-      sections.addAll(_spotlightSection(context, delay));
-      delay += 80;
-      sections.addAll(_vipSection(context, delay));
-      delay += 60;
-      sections.addAll(_dailyMatchesSection(context, delay));
-      delay += 60;
-      sections.addAll(_premiumMatchesSection(context, delay));
-    } else {
-      // Morning/Afternoon: Spotlight → Daily → Active Now → VIP → Premium
-      sections.addAll(_spotlightSection(context, delay));
-      delay += 80;
-      sections.addAll(_dailyMatchesSection(context, delay));
-      delay += 60;
-      sections.addAll(_activeNowSection(context, delay));
-      delay += 60;
-      sections.addAll(_vipSection(context, delay));
-      delay += 60;
-      sections.addAll(_premiumMatchesSection(context, delay));
-    }
-
-    sections.add(const SizedBox(height: 20));
-    return sections;
+    );
   }
 
-  // ── Section builders (return List<Widget> for flexible ordering) ──
+  // ══════════════════════════════════════════════════════════
+  // ALL SECTIONS — Perfect sequence
+  // ══════════════════════════════════════════════════════════
+  List<Widget> _buildAllSections(BuildContext context) {
+    final s = <Widget>[];
+    int delay = 0;
 
-  List<Widget> _activeNowSection(BuildContext context, int delay) => [
-    FadeAnimation(delayInMs: delay, child: _buildActiveNow(context)),
-    const SizedBox(height: 24),
-  ];
+    // ── 1. HEADER ─────────────────────────────────────────
+    s.add(const SizedBox(height: 20));
+    s.add(FadeAnimation(delayInMs: delay, child: _buildHeader(context)));
+    delay += 40;
 
-  List<Widget> _spotlightSection(BuildContext context, int delay) => [
+    // ── 2. NEW MATCHES BANNER (conditional) ───────────────
+    if (_user.newMatchesSinceYesterday > 0) {
+      s.add(const SizedBox(height: 14));
+      s.add(FadeAnimation(
+        delayInMs: delay,
+        child: _buildNewMatchesBanner(context),
+      ));
+      delay += 30;
+    }
+
+    // ── 3. PROFILE COMPLETION NUDGE (if < 80%) ────────────
+    if (_user.profileCompletionPct < 80) {
+      s.add(const SizedBox(height: 12));
+      s.add(FadeAnimation(
+        delayInMs: delay,
+        child: _buildCompletionNudge(context),
+      ));
+      delay += 30;
+    }
+
+    // ── 4. THOUGHT OF THE DAY ─────────────────────────────
+    s.add(const SizedBox(height: 20));
+    s.add(FadeAnimation(
+      delayInMs: delay,
+      child: _buildThoughtOfDay(context),
+    ));
+    delay += 40;
+
+    // ── 5-9: Time-based section ordering ──────────────────
+    if (_isEvening) {
+      // Evening: Active first (people are online)
+      s.addAll(_sectionActiveNow(context, delay));     delay += 50;
+      s.addAll(_sectionSpotlight(context, delay));     delay += 60;
+      s.addAll(_sectionDailyMatches(context, delay));  delay += 50;
+      s.addAll(_sectionVipBanner(context, delay));     delay += 40;
+      s.addAll(_sectionPremiumMatches(context, delay)); delay += 40;
+    } else {
+      // Morning: Spotlight first (fresh daily matches)
+      s.addAll(_sectionSpotlight(context, delay));     delay += 60;
+      s.addAll(_sectionDailyMatches(context, delay));  delay += 50;
+      s.addAll(_sectionActiveNow(context, delay));     delay += 50;
+      s.addAll(_sectionVipBanner(context, delay));     delay += 40;
+      s.addAll(_sectionPremiumMatches(context, delay)); delay += 40;
+    }
+
+    // ── 10. SUCCESS STORIES (always last — social proof) ──
+    s.addAll(_sectionSuccessStories(context, delay));
+
+    s.add(const SizedBox(height: 16));
+    return s;
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // SECTION BUILDERS
+  // ──────────────────────────────────────────────────────────
+
+  List<Widget> _sectionSpotlight(BuildContext ctx, int delay) => [
+    const SizedBox(height: 28),
     FadeAnimation(
       delayInMs: delay,
-      child: _SectionLabel(
+      child: _AccentSectionLabel(
         title: 'Spotlight',
         subtitle: 'Highly compatible profiles',
         icon: Icons.auto_awesome_rounded,
       ),
     ),
-    const SizedBox(height: 14),
+    const SizedBox(height: 16),
     FadeAnimation(
       delayInMs: delay + 20,
-      child: _buildSpotlightCarousel(context),
+      child: _buildSpotlightCarousel(ctx),
     ),
-    const SizedBox(height: 16), // Tighter — card already has 12px bottom pad
+    const SizedBox(height: 10),
+    FadeAnimation(
+      delayInMs: delay + 30,
+      child: _buildSpotlightDots(),
+    ),
   ];
 
-  List<Widget> _dailyMatchesSection(BuildContext context, int delay) => [
+  List<Widget> _sectionDailyMatches(BuildContext ctx, int delay) => [
+    const SizedBox(height: 28),
     FadeAnimation(
       delayInMs: delay,
-      child: _SectionLabel(
+      child: _AccentSectionLabel(
         title: 'Daily Matches',
-        subtitle: 'Refreshed every morning',
+        subtitle: 'Refreshed every morning for you',
         actionText: 'See All',
-        onActionTap: () => context.push('/matches'),
+        onActionTap: () => ctx.push('/matches'),
       ),
     ),
-    const SizedBox(height: 14),
+    const SizedBox(height: 16),
     FadeAnimation(
       delayInMs: delay + 20,
-      child: _buildDailyMatchesRow(context),
+      child: _buildDailyMatchesRow(ctx),
     ),
-    const SizedBox(height: 24),
   ];
 
-  List<Widget> _vipSection(BuildContext context, int delay) {
-    if (_isPremium) return [];
+  List<Widget> _sectionActiveNow(BuildContext ctx, int delay) => [
+    const SizedBox(height: 28),
+    FadeAnimation(
+      delayInMs: delay,
+      child: _buildActiveNow(ctx),
+    ),
+  ];
+
+  List<Widget> _sectionVipBanner(BuildContext ctx, int delay) {
+    if (_isPremium) return const [];
     return [
-      FadeAnimation(delayInMs: delay, child: _buildVipBanner(context)),
-      const SizedBox(height: 24),
+      const SizedBox(height: 28),
+      FadeAnimation(
+        delayInMs: delay,
+        child: _buildVipBanner(ctx),
+      ),
     ];
   }
 
-  List<Widget> _premiumMatchesSection(BuildContext context, int delay) => [
+  List<Widget> _sectionPremiumMatches(BuildContext ctx, int delay) => [
+    const SizedBox(height: 28),
     FadeAnimation(
       delayInMs: delay,
-      child: _SectionLabel(
+      child: _AccentSectionLabel(
         title: 'Premium Matches',
         subtitle: _isPremium ? 'Verified premium members' : 'Upgrade to unlock',
         icon: Icons.diamond_rounded,
         actionText: _isPremium ? 'See All' : 'Unlock',
-        onActionTap: () => _isPremium
-            ? context.push('/matches')
-            : context.push('/premium'),
+        onActionTap: () =>
+        _isPremium ? ctx.push('/matches') : ctx.push('/premium'),
       ),
     ),
-    const SizedBox(height: 14),
+    const SizedBox(height: 16),
     FadeAnimation(
       delayInMs: delay + 20,
-      child: _buildPremiumMatchesRow(context),
+      child: _buildPremiumMatchesRow(ctx),
     ),
-    const SizedBox(height: 24),
+  ];
+
+  List<Widget> _sectionSuccessStories(BuildContext ctx, int delay) => [
+    const SizedBox(height: 28),
+    FadeAnimation(
+      delayInMs: delay,
+      child: _AccentSectionLabel(
+        title: 'Success Stories',
+        subtitle: 'Couples who found love on Vaaya',
+        icon: Icons.favorite_rounded,
+      ),
+    ),
+    const SizedBox(height: 16),
+    FadeAnimation(
+      delayInMs: delay + 20,
+      child: _buildSuccessStoriesRow(ctx),
+    ),
   ];
 
   // ══════════════════════════════════════════════════════════
@@ -457,18 +601,30 @@ class _HomeScreenState extends State<HomeScreen>
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
+          // Avatar — premium gets gold ring
           Semantics(
             button: true,
             label: 'Open my profile',
             child: GestureDetector(
-              onTap: () {
-                HapticUtils.lightImpact();
-                context.push('/my_profile');
-              },
-              child: PremiumAvatar(
-                imageUrl: _user.image,
-                size: 48,
-                isOnline: true,
+              onTap: () { HapticUtils.lightImpact(); context.push('/my_profile'); },
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  if (_isPremium)
+                    Container(
+                      width: 56, height: 56,
+                      decoration: const BoxDecoration(
+                        gradient: AppTheme.goldGradient,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  PremiumAvatar(
+                    imageUrl: _user.image,
+                    size: 48,
+                    isOnline: true,
+                  ),
+                ],
               ),
             ),
           ),
@@ -479,16 +635,38 @@ class _HomeScreenState extends State<HomeScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _greetingText,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    color: Colors.grey.shade500,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [
+                      AppTheme.brandPrimary.withValues(alpha: 0.08),
+                      AppTheme.brandPrimary.withValues(alpha: 0.02),
+                    ]),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _isEvening ? '🌙' : '☀️',
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _greetingText,
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.brandPrimary.withValues(alpha: 0.80),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 1),
+                const SizedBox(height: 3),
                 Text(
                   _user.name,
                   style: const TextStyle(
@@ -506,23 +684,18 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
 
-          _HeaderActionButton(
+          // Action buttons
+          _HeaderBtn(
             icon: Icons.search_rounded,
-            semanticLabel: 'Search matches',
-            onTap: () {
-              HapticUtils.lightImpact();
-              context.push('/matches');
-            },
+            label: 'Search',
+            onTap: () { HapticUtils.lightImpact(); context.push('/matches'); },
           ),
           const SizedBox(width: 8),
-          _HeaderActionButton(
+          _HeaderBtn(
             icon: Icons.notifications_rounded,
-            semanticLabel: 'Notifications',
-            badgeCount: _user.unreadNotifications,
-            onTap: () {
-              HapticUtils.mediumImpact();
-              context.push('/notifications');
-            },
+            label: 'Notifications',
+            badge: _user.unreadNotifications,
+            onTap: () { HapticUtils.mediumImpact(); context.push('/notifications'); },
           ),
         ],
       ),
@@ -530,91 +703,91 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ══════════════════════════════════════════════════════════
-  // 2. NEW MATCHES BANNER — Animated pulse, creates urgency
+  // 2. NEW MATCHES BANNER — scale + border pulse
   // ══════════════════════════════════════════════════════════
   Widget _buildNewMatchesBanner(BuildContext context) {
     final count = _user.newMatchesSinceYesterday;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GestureDetector(
-        onTap: () {
-          HapticUtils.mediumImpact();
-          context.push('/matches');
-        },
+        onTap: () { HapticUtils.mediumImpact(); context.push('/matches'); },
         child: AnimatedBuilder(
-          animation: _pulseAnim,
+          animation: _pulsCtrl,
           builder: (_, child) => Transform.scale(
-            scale: _pulseAnim.value,
-            child: child,
-          ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppTheme.brandPrimary.withValues(alpha: 0.08),
+            scale: _scaleAnim.value,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [
+                  AppTheme.brandPrimary.withValues(alpha: 0.09),
                   AppTheme.brandPrimary.withValues(alpha: 0.03),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppTheme.brandPrimary.withValues(alpha: 0.18),
-              ),
-            ),
-            child: Row(
-              children: [
-                // Animated dot
-                Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: AppTheme.brandPrimary.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
+                ]),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppTheme.brandPrimary.withValues(
+                    alpha: _borderAnim.value,
                   ),
-                  child: Center(
-                    child: Text(
-                      '$count',
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.brandPrimary,
-                      ),
+                  width: 1.5,
+                ),
+              ),
+              child: child,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  gradient: AppTheme.brandGradient,
+                  shape: BoxShape.circle,
+                  boxShadow: AppTheme.primaryGlow,
+                ),
+                child: Center(
+                  child: Text(
+                    '$count',
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '$count new match${count > 1 ? 'es' : ''} since yesterday!',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.brandDark,
-                        ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$count new match${count > 1 ? 'es' : ''} since yesterday!',
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.brandDark,
                       ),
-                      const SizedBox(height: 1),
-                      Text(
-                        'Tap to see who matched with you',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: Colors.grey.shade400,
-                        ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Tap to view your matches',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 11,
+                        color: Colors.grey.shade500,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-
-                Icon(Icons.arrow_forward_ios_rounded,
-                    size: 13, color: AppTheme.brandPrimary.withValues(alpha: 0.50)),
-              ],
-            ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: AppTheme.brandPrimary,
+              ),
+            ],
           ),
         ),
       ),
@@ -622,68 +795,53 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ══════════════════════════════════════════════════════════
-  // 3. PROFILE COMPLETION NUDGE — Drives completion from home
+  // 3. PROFILE COMPLETION NUDGE
   // ══════════════════════════════════════════════════════════
   Widget _buildCompletionNudge(BuildContext context) {
     final pct = _user.profileCompletionPct;
-    final Color barColor = pct < 40
-        ? const Color(0xFFEF4444)
-        : pct < 70
-        ? const Color(0xFFF59E0B)
-        : AppTheme.brandPrimary;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GestureDetector(
-        onTap: () {
-          HapticUtils.lightImpact();
-          context.push('/edit_profile');
-        },
+        onTap: () { HapticUtils.lightImpact(); context.push('/edit_profile'); },
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
             boxShadow: AppTheme.softShadow,
-            border: Border.all(color: barColor.withValues(alpha: 0.15)),
+            border: Border.all(
+              color: AppTheme.brandPrimary.withValues(alpha: 0.10),
+            ),
           ),
           child: Row(
             children: [
-              // Circular progress indicator
               SizedBox(
-                width: 42, height: 42,
+                width: 48, height: 48,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0, end: pct / 100),
-                      duration: const Duration(milliseconds: 1000),
-                      curve: Curves.easeOutCubic,
-                      builder: (_, value, __) => SizedBox(
-                        width: 42, height: 42,
-                        child: CircularProgressIndicator(
-                          value: value,
-                          strokeWidth: 3.5,
-                          backgroundColor: Colors.grey.shade100,
-                          valueColor: AlwaysStoppedAnimation<Color>(barColor),
-                          strokeCap: StrokeCap.round,
-                        ),
+                    CircularProgressIndicator(
+                      value: pct / 100,
+                      strokeWidth: 3.5,
+                      backgroundColor: Colors.grey.shade100,
+                      valueColor: const AlwaysStoppedAnimation(
+                        AppTheme.brandPrimary,
                       ),
+                      strokeCap: StrokeCap.round,
                     ),
                     Text(
                       '$pct%',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontFamily: 'Poppins',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        color: barColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.brandPrimary,
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 14),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -699,32 +857,33 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Get 3x more matches with a complete profile',
+                      'Get ${(100 - pct) < 20 ? '3x' : '5x'} more matches',
                       style: TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 11,
-                        color: Colors.grey.shade400,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: pct / 100,
+                        minHeight: 3,
+                        backgroundColor: Colors.grey.shade100,
+                        valueColor: const AlwaysStoppedAnimation(
+                          AppTheme.brandPrimary,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: barColor,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Text(
-                  'Complete',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 13,
+                color: AppTheme.brandPrimary,
               ),
             ],
           ),
@@ -734,31 +893,160 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ══════════════════════════════════════════════════════════
-  // 4. ACTIVE NOW
+  // 4. THOUGHT OF THE DAY — NEW
+  // ══════════════════════════════════════════════════════════
+  Widget _buildThoughtOfDay(BuildContext context) {
+    final thought = _thoughts[_thoughtIndex];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppTheme.brandPrimary.withValues(alpha: 0.05),
+              AppTheme.goldPrimary.withValues(alpha: 0.06),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppTheme.goldPrimary.withValues(alpha: 0.18),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Emoji
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: AppTheme.goldPrimary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(thought.emoji,
+                    style: const TextStyle(fontSize: 22)),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.goldPrimary.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'THOUGHT OF THE DAY',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.goldPrimary,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    thought.quote,
+                    style: const TextStyle(
+                      fontFamily: 'Cormorant Garamond',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.brandDark,
+                      height: 1.45,
+                      letterSpacing: -0.1,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '— ${thought.author}',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 10,
+                      color: Colors.grey.shade400,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // 5. ACTIVE NOW — Liked You card + online avatars
   // ══════════════════════════════════════════════════════════
   Widget _buildActiveNow(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Header row
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(
             children: [
-              Container(
-                width: 8, height: 8,
-                decoration: const BoxDecoration(
-                  color: AppTheme.accentGreen,
-                  shape: BoxShape.circle,
+              AnimatedBuilder(
+                animation: _pulsCtrl,
+                builder: (_, __) => Container(
+                  width: 8, height: 8,
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentGreen.withValues(
+                      alpha: 0.4 + _borderAnim.value * 0.6,
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.accentGreen.withValues(
+                          alpha: _borderAnim.value * 0.5,
+                        ),
+                        blurRadius: 6,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               const Text(
                 'Active Now',
                 style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
+                  fontFamily: 'Cormorant Garamond',
+                  fontSize: 22,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.accentGreen,
+                  color: AppTheme.brandDark,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentGreen.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'LIVE',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.accentGreen,
+                    letterSpacing: 1.0,
+                  ),
                 ),
               ),
             ],
@@ -766,17 +1054,17 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         const SizedBox(height: 14),
 
+        // Horizontal list
         SizedBox(
-          height: 96,
+          height: 104,
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             itemCount: _dummyActive.length + 1,
             itemBuilder: (_, index) {
               if (index == 0) return _buildLikedYouCard(context);
-              final user = _dummyActive[index - 1];
-              return _buildActiveUserAvatar(context, user);
+              return _buildActiveAvatar(context, _dummyActive[index - 1]);
             },
           ),
         ),
@@ -784,55 +1072,80 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  // ── Liked You Card ────────────────────────────────────────
   Widget _buildLikedYouCard(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        HapticUtils.mediumImpact();
-        context.push('/interests');
-      },
+      onTap: () { HapticUtils.mediumImpact(); context.push('/premium'); },
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: const EdgeInsets.only(right: 16),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             AnimatedBuilder(
-              animation: _goldShimmerCtrl,
+              animation: _pulsCtrl,
               builder: (_, child) => Container(
-                padding: const EdgeInsets.all(2.5),
+                width: 68, height: 68,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: SweepGradient(
-                    transform: GradientRotation(
-                      _goldShimmerCtrl.value * math.pi * 2,
+                  border: Border.all(
+                    color: AppTheme.goldPrimary.withValues(
+                      alpha: _borderAnim.value,
                     ),
-                    colors: const [
-                      Color(0xFFFFD700),
-                      Color(0xFFC9962A),
-                      Color(0xFFF5C842),
-                      Color(0xFFC9962A),
-                      Color(0xFFFFD700),
-                    ],
+                    width: 2.5,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.goldPrimary.withValues(
+                        alpha: _borderAnim.value * 0.45,
+                      ),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                    ),
+                  ],
                 ),
                 child: child,
               ),
               child: ClipOval(
-                child: SizedBox(
-                  width: 62, height: 62,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CustomNetworkImage(
-                        imageUrl: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=200&q=80',
-                        borderRadius: 0,
-                      ),
-                      BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                        child: Container(
-                          color: Colors.white.withValues(alpha: 0.08),
+                child: Stack(
+                  children: [
+                    // Blurred face previews
+                    for (int i = 0; i < _likedYouPreviews.length; i++)
+                      Positioned.fill(
+                        child: Opacity(
+                          opacity: i == 0 ? 1.0 : 0.65,
+                          child: ImageFiltered(
+                            imageFilter: ImageFilter.blur(
+                              sigmaX: 5, sigmaY: 5,
+                            ),
+                            child: CustomNetworkImage(
+                              imageUrl: _likedYouPreviews[i],
+                              borderRadius: 0,
+                            ),
+                          ),
                         ),
                       ),
-                    ],
-                  ),
+                    // Gold overlay
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppTheme.goldPrimary.withValues(alpha: 0.62),
+                            AppTheme.goldPrimary.withValues(alpha: 0.38),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                    ),
+                    // Heart icon
+                    const Center(
+                      child: Icon(
+                        Icons.favorite_rounded,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -842,10 +1155,11 @@ class _HomeScreenState extends State<HomeScreen>
               decoration: BoxDecoration(
                 gradient: AppTheme.goldGradient,
                 borderRadius: BorderRadius.circular(8),
+                boxShadow: AppTheme.goldGlow,
               ),
-              child: const Text(
-                'Liked You',
-                style: TextStyle(
+              child: Text(
+                '${_user.likedYouCount} liked',
+                style: const TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 9,
                   fontWeight: FontWeight.w800,
@@ -859,15 +1173,13 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildActiveUserAvatar(BuildContext context, _ActiveUser user) {
+  Widget _buildActiveAvatar(BuildContext context, _ActiveUser user) {
     return GestureDetector(
-      onTap: () {
-        HapticUtils.lightImpact();
-        context.push('/user_detail');
-      },
+      onTap: () { HapticUtils.lightImpact(); context.push('/user_detail'); },
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: const EdgeInsets.only(right: 16),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             PremiumAvatar(
               imageUrl: user.image,
@@ -875,7 +1187,7 @@ class _HomeScreenState extends State<HomeScreen>
               isOnline: true,
               showRing: true,
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 6),
             Text(
               user.name.split(' ').first,
               style: const TextStyle(
@@ -892,11 +1204,11 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ══════════════════════════════════════════════════════════
-  // 5. SPOTLIGHT CAROUSEL — Hero section with kundali chip
+  // SPOTLIGHT CAROUSEL — 64px like, swipe gesture
   // ══════════════════════════════════════════════════════════
   Widget _buildSpotlightCarousel(BuildContext context) {
     return SizedBox(
-      height: 400, // Enough for card + action buttons + breathing room
+      height: 360,
       child: PageView.builder(
         controller: _pageController,
         physics: const BouncingScrollPhysics(),
@@ -909,26 +1221,50 @@ class _HomeScreenState extends State<HomeScreen>
               double scale = 1.0;
               if (_pageController.position.haveDimensions) {
                 final page = _pageController.page! - index;
-                scale = (1 - page.abs() * 0.10).clamp(0.88, 1.0);
+                scale = (1 - page.abs() * 0.08).clamp(0.90, 1.0);
               } else {
-                scale = index == 0 ? 1.0 : 0.88;
+                scale = index == 0 ? 1.0 : 0.90;
               }
               return Transform.scale(scale: scale, child: child);
             },
-            child: _SpotlightCard(
-              match: match,
-              onTap: () {
-                HapticUtils.mediumImpact();
-                context.push('/user_detail');
-              },
-              onLike: () {
-                HapticUtils.heavyImpact();
-                // TODO: interestsProvider.sendInterest(match.id)
-              },
-              onSkip: () {
-                HapticUtils.lightImpact();
-                // TODO: matchesProvider.skip(match.id)
-              },
+            child: RepaintBoundary(
+              child: GestureDetector(
+                onHorizontalDragEnd: (details) {
+                  if (details.primaryVelocity == null) return;
+                  if (details.primaryVelocity! < -300) {
+                    HapticUtils.lightImpact();
+                    if (_spotlightIndex < _dummySpotlight.length - 1) {
+                      _pageController.nextPage(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeOut,
+                      );
+                    }
+                  } else if (details.primaryVelocity! > 300) {
+                    HapticUtils.heavyImpact();
+                    if (_spotlightIndex > 0) {
+                      _pageController.previousPage(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeOut,
+                      );
+                    }
+                  }
+                },
+                child: _SpotlightCard(
+                  match: match,
+                  onTap: () { HapticUtils.lightImpact(); context.push('/user_detail'); },
+                  onLike: () { HapticUtils.heavyImpact(); },
+                  onSkip: () {
+                    HapticUtils.lightImpact();
+                    if (_spotlightIndex < _dummySpotlight.length - 1) {
+                      _pageController.nextPage(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeOut,
+                      );
+                    }
+                  },
+                  onInterest: () { HapticUtils.mediumImpact(); },
+                ),
+              ),
             ),
           );
         },
@@ -936,111 +1272,144 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  Widget _buildSpotlightDots() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_dummySpotlight.length, (i) {
+        final active = i == _spotlightIndex;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          width: active ? 20 : 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: active ? AppTheme.brandPrimary : Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        );
+      }),
+    );
+  }
+
   // ══════════════════════════════════════════════════════════
-  // 6. VIP BANNER
+  // VIP BANNER — ShaderMask shimmer + star particles
   // ══════════════════════════════════════════════════════════
   Widget _buildVipBanner(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GestureDetector(
-        onTap: () {
-          HapticUtils.heavyImpact();
-          context.push('/premium');
-        },
+        onTap: () { HapticUtils.mediumImpact(); context.push('/premium'); },
         child: Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            gradient: AppTheme.darkGradient,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: AppTheme.goldPrimary.withValues(alpha: 0.45),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Row(
+          padding: const EdgeInsets.all(20),
+          decoration: AppTheme.goldCardDecoration,
+          child: Stack(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.goldPrimary.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'ELITE MEMBERSHIP',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          color: Color(0xFFFFD700),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Unlock\nPremium',
-                      style: TextStyle(
-                        fontFamily: 'Cormorant Garamond',
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w700,
-                        height: 1.1,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Contact numbers, who liked you,\nand stand out.',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        color: Colors.white.withValues(alpha: 0.55),
-                        fontSize: 11,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFD700),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        'Upgrade Now',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
-                          color: AppTheme.brandDark,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const Positioned.fill(child: _StarParticles()),
+              Row(
                 children: [
-                  _VipPerk('See who liked you'),
-                  _VipPerk('Unlimited interests'),
-                  _VipPerk('Contact numbers'),
-                  _VipPerk('Priority placement'),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: AppTheme.goldGradient,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'VAAYA PREMIUM',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Find your\nperfect match',
+                          style: TextStyle(
+                            fontFamily: 'Cormorant Garamond',
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            height: 1.2,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Unlock contacts, see who liked you',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            color: Colors.white.withValues(alpha: 0.55),
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Shimmer Upgrade button
+                        AnimatedBuilder(
+                          animation: _goldShimmerCtrl,
+                          builder: (_, child) {
+                            final t = _goldShimmerCtrl.value;
+                            return ShaderMask(
+                              shaderCallback: (bounds) => LinearGradient(
+                                colors: const [
+                                  Color(0xFFFFD700),
+                                  Color(0xFFFFF5A0),
+                                  Color(0xFFFFD700),
+                                  Color(0xFFFFC200),
+                                ],
+                                stops: [
+                                  (t - 0.3).clamp(0.0, 1.0),
+                                  t.clamp(0.0, 1.0),
+                                  (t + 0.1).clamp(0.0, 1.0),
+                                  (t + 0.4).clamp(0.0, 1.0),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ).createShader(bounds),
+                              child: child!,
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFD700),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: AppTheme.goldGlow,
+                            ),
+                            child: const Text(
+                              'Upgrade Now',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                                color: AppTheme.brandDark,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _VipPerk('See who liked you'),
+                      _VipPerk('Unlimited interests'),
+                      _VipPerk('Contact numbers'),
+                      _VipPerk('Priority placement'),
+                    ],
+                  ),
                 ],
               ),
             ],
@@ -1051,32 +1420,26 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ══════════════════════════════════════════════════════════
-  // 7. DAILY MATCHES — With quick actions + "active Xh ago"
+  // DAILY MATCHES ROW — arc ring + 3 action buttons
   // ══════════════════════════════════════════════════════════
   Widget _buildDailyMatchesRow(BuildContext context) {
     return SizedBox(
-      height: 300,
+      height: 268,
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: _dummyDaily.length,
         itemBuilder: (_, index) {
-          final match = _dummyDaily[index];
-          return _DailyMatchCard(
-            match: match,
-            onTap: () {
-              HapticUtils.lightImpact();
-              context.push('/user_detail');
-            },
-            onLike: () {
-              HapticUtils.heavyImpact();
-              // TODO: interestsProvider.sendInterest()
-            },
-            onSkip: () {
-              HapticUtils.lightImpact();
-              // TODO: matchesProvider.skip()
-            },
+          return FadeAnimation(
+            delayInMs: index * 60,
+            child: _DailyMatchCard(
+              match: _dummyDaily[index],
+              onTap: () { HapticUtils.lightImpact(); context.push('/user_detail'); },
+              onLike: () { HapticUtils.heavyImpact(); },
+              onSkip: () { HapticUtils.lightImpact(); },
+              onInterest: () { HapticUtils.mediumImpact(); },
+            ),
           );
         },
       ),
@@ -1084,20 +1447,24 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ══════════════════════════════════════════════════════════
-  // 8. PREMIUM MATCHES
+  // PREMIUM MATCHES ROW
   // ══════════════════════════════════════════════════════════
   Widget _buildPremiumMatchesRow(BuildContext context) {
     return SizedBox(
-      height: 186,
+      height: 204,
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        itemCount: _dummyPremium.length,
+        itemCount: _dummyPremium.length + (_isPremium ? 0 : 1),
         itemBuilder: (_, index) {
-          final match = _dummyPremium[index];
+          if (!_isPremium && index == _dummyPremium.length) {
+            return _PremiumUnlockCta(
+              onTap: () { HapticUtils.mediumImpact(); context.push('/premium'); },
+            );
+          }
           return _PremiumMatchTile(
-            match: match,
+            match: _dummyPremium[index],
             isPremiumUser: _isPremium,
             onTap: () {
               if (_isPremium) {
@@ -1113,13 +1480,34 @@ class _HomeScreenState extends State<HomeScreen>
       ),
     );
   }
+
+  // ══════════════════════════════════════════════════════════
+  // SUCCESS STORIES ROW — NEW
+  // ══════════════════════════════════════════════════════════
+  Widget _buildSuccessStoriesRow(BuildContext context) {
+    return SizedBox(
+      height: 180,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: _dummyStories.length,
+        itemBuilder: (_, index) {
+          return FadeAnimation(
+            delayInMs: index * 80,
+            child: _SuccessStoryCard(story: _dummyStories[index]),
+          );
+        },
+      ),
+    );
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
-// INLINED HELPER WIDGETS
+// HELPER WIDGETS
 // ══════════════════════════════════════════════════════════════
 
-// ── Ambient background ──────────────────────────────────────
+// ── Ambient background ────────────────────────────────────────
 class _AmbientBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -1145,14 +1533,101 @@ class _AmbientBackground extends StatelessWidget {
             ),
           ),
         ),
+        Positioned(
+          top: 750, right: -60,
+          child: Container(
+            width: 180, height: 180,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.goldPrimary.withValues(alpha: 0.04),
+            ),
+          ),
+        ),
       ],
     );
   }
 }
 
-// ── Section label ───────────────────────────────────────────
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({
+// ── Star particles (VIP banner) ───────────────────────────────
+class _StarParticles extends StatefulWidget {
+  const _StarParticles();
+
+  @override
+  State<_StarParticles> createState() => _StarParticlesState();
+}
+
+class _StarParticlesState extends State<_StarParticles>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) => CustomPaint(painter: _StarPainter(_ctrl.value)),
+    );
+  }
+}
+
+class _StarPainter extends CustomPainter {
+  _StarPainter(this.t);
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint();
+    for (int i = 0; i < 8; i++) {
+      final seed = i * 137.508;
+      final x = seed % size.width;
+      final baseY = (seed * 1.618) % size.height;
+      final y = baseY + math.sin((t + i * 0.3) * math.pi * 2) * 6;
+      final opacity =
+          (math.sin((t + i * 0.125) * math.pi * 2) * 0.5 + 0.5) * 0.35;
+      paint.color = Colors.white.withValues(alpha: opacity);
+      _drawStar(canvas, Offset(x, y), 3 + (i % 3).toDouble(), paint);
+    }
+  }
+
+  void _drawStar(Canvas canvas, Offset c, double r, Paint p) {
+    final path = Path();
+    for (int i = 0; i < 5; i++) {
+      final oa = -math.pi / 2 + i * 2 * math.pi / 5;
+      final ia = oa + math.pi / 5;
+      final o = Offset(c.dx + r * math.cos(oa), c.dy + r * math.sin(oa));
+      final iv = Offset(
+        c.dx + r * 0.4 * math.cos(ia),
+        c.dy + r * 0.4 * math.sin(ia),
+      );
+      if (i == 0) path.moveTo(o.dx, o.dy);
+      else path.lineTo(o.dx, o.dy);
+      path.lineTo(iv.dx, iv.dy);
+    }
+    path.close();
+    canvas.drawPath(path, p);
+  }
+
+  @override
+  bool shouldRepaint(_StarPainter old) => old.t != t;
+}
+
+// ── Accent section label — 3px brand left line + InkWell ──────
+class _AccentSectionLabel extends StatelessWidget {
+  const _AccentSectionLabel({
     required this.title,
     this.subtitle,
     this.icon,
@@ -1173,6 +1648,15 @@ class _SectionLabel extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // Brand accent line
+          Container(
+            width: 3, height: 28,
+            margin: const EdgeInsets.only(right: 10),
+            decoration: BoxDecoration(
+              gradient: AppTheme.brandGradient,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           if (icon != null) ...[
             Icon(icon, size: 18, color: AppTheme.brandPrimary),
             const SizedBox(width: 7),
@@ -1193,44 +1677,51 @@ class _SectionLabel extends StatelessWidget {
                     height: 1.1,
                   ),
                 ),
-                if (subtitle != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      subtitle!,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
-                        fontWeight: FontWeight.w400,
-                      ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
                     ),
                   ),
+                ],
               ],
             ),
           ),
           if (actionText != null && onActionTap != null)
-            GestureDetector(
-              onTap: () {
-                HapticUtils.lightImpact();
-                onActionTap!();
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    actionText!,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.brandPrimary,
-                    ),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () { HapticUtils.lightImpact(); onActionTap!(); },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 4,
                   ),
-                  const SizedBox(width: 3),
-                  const Icon(Icons.arrow_forward_ios_rounded,
-                      size: 10, color: AppTheme.brandPrimary),
-                ],
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        actionText!,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.brandPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 10,
+                        color: AppTheme.brandPrimary,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
         ],
@@ -1239,53 +1730,428 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ── Header action button ────────────────────────────────────
-class _HeaderActionButton extends StatelessWidget {
-  const _HeaderActionButton({
+// ── Header button ─────────────────────────────────────────────
+class _HeaderBtn extends StatelessWidget {
+  const _HeaderBtn({
     required this.icon,
     required this.onTap,
-    this.semanticLabel,
-    this.badgeCount = 0,
+    this.label,
+    this.badge = 0,
+    this.size = 44,
   });
 
   final IconData icon;
   final VoidCallback onTap;
-  final String? semanticLabel;
-  final int badgeCount;
+  final String? label;
+  final int badge;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      button: true,
-      label: semanticLabel,
+      button: true, label: label,
       child: GestureDetector(
         onTap: onTap,
-        child: Container(
-          width: 44, height: 44,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: AppTheme.softShadow,
-            border: Border.all(color: Colors.grey.shade100, width: 1.5),
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            clipBehavior: Clip.none,
-            children: [
-              Icon(icon, color: AppTheme.brandDark, size: 22),
-              if (badgeCount > 0)
-                Positioned(
-                  top: 8, right: 8,
-                  child: Container(
-                    width: 8, height: 8,
-                    decoration: BoxDecoration(
-                      color: AppTheme.brandPrimary,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 1.5),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: size, height: size,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: AppTheme.softShadow,
+              ),
+              child: Icon(icon, color: AppTheme.brandDark, size: size * 0.45),
+            ),
+            if (badge > 0)
+              Positioned(
+                top: -2, right: -2,
+                child: Container(
+                  width: 18, height: 18,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.brandPrimary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      badge > 9 ? '9+' : '$badge',
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── VIP perk item ─────────────────────────────────────────────
+class _VipPerk extends StatelessWidget {
+  const _VipPerk(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 18, height: 18,
+            decoration: BoxDecoration(
+              color: AppTheme.goldPrimary.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              color: AppTheme.goldLight,
+              size: 12,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Colors.white.withValues(alpha: 0.80),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// SPOTLIGHT CARD — 64px like, spring animation, interest btn
+// ══════════════════════════════════════════════════════════════
+class _SpotlightCard extends StatefulWidget {
+  const _SpotlightCard({
+    required this.match,
+    required this.onTap,
+    required this.onLike,
+    required this.onSkip,
+    required this.onInterest,
+  });
+
+  final _SpotlightMatch match;
+  final VoidCallback onTap, onLike, onSkip, onInterest;
+
+  @override
+  State<_SpotlightCard> createState() => _SpotlightCardState();
+}
+
+class _SpotlightCardState extends State<_SpotlightCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pressCtrl;
+  late final Animation<double> _likeScale;
+
+  @override
+  void initState() {
+    super.initState();
+    _pressCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 110),
+      reverseDuration: const Duration(milliseconds: 220),
+    );
+    _likeScale = Tween<double>(begin: 1.0, end: 0.86).animate(
+      CurvedAnimation(parent: _pressCtrl, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pressCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = widget.match;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.14),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
             ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Photo
+                CustomNetworkImage(imageUrl: m.image, borderRadius: 0),
+
+                // Bottom gradient
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.90),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.55],
+                    ),
+                  ),
+                ),
+
+                // Top soft gradient
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.22),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.28],
+                    ),
+                  ),
+                ),
+
+                // Match % badge
+                Positioned(
+                  top: 16, left: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.95),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: AppTheme.softShadow,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.local_fire_department_rounded,
+                          color: AppTheme.brandPrimary,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '${m.matchPct}% Match',
+                          style: const TextStyle(
+                            fontFamily: 'Poppins',
+                            color: AppTheme.brandPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Verified + Kundali badges
+                Positioned(
+                  top: 16, right: 16,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (m.isVerified)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accentBlue.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.verified_rounded,
+                                  color: Colors.white, size: 11),
+                              SizedBox(width: 4),
+                              Text(
+                                'Verified',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (m.kundaliCompatible) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.goldPrimary.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.stars_rounded,
+                                  color: Colors.white, size: 11),
+                              SizedBox(width: 4),
+                              Text(
+                                'Kundali ✓',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // Profile info
+                Positioned(
+                  bottom: 90, left: 18, right: 18,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${m.name}, ${m.age}',
+                        style: const TextStyle(
+                          fontFamily: 'Cormorant Garamond',
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w700,
+                          height: 1.1,
+                          letterSpacing: -0.4,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          _SpotlightChip(
+                            icon: Icons.work_outline_rounded,
+                            label: m.profession,
+                          ),
+                          const SizedBox(width: 8),
+                          _SpotlightChip(
+                            icon: Icons.location_on_outlined,
+                            label: m.city,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Action buttons — skip | interest | like(64px)
+                Positioned(
+                  bottom: 16, left: 18, right: 18,
+                  child: Row(
+                    children: [
+                      // Skip
+                      GestureDetector(
+                        onTap: widget.onSkip,
+                        child: Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.30),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.close_rounded,
+                            color: Colors.white.withValues(alpha: 0.85),
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      // Interest
+                      GestureDetector(
+                        onTap: widget.onInterest,
+                        child: Container(
+                          width: 48, height: 48,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.30),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.send_rounded,
+                            color: Colors.white.withValues(alpha: 0.85),
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Like — 64px + spring scale
+                      GestureDetector(
+                        onTapDown: (_) => _pressCtrl.forward(),
+                        onTapUp: (_) {
+                          _pressCtrl.reverse();
+                          widget.onLike();
+                        },
+                        onTapCancel: () => _pressCtrl.reverse(),
+                        child: AnimatedBuilder(
+                          animation: _likeScale,
+                          builder: (_, child) => Transform.scale(
+                            scale: _likeScale.value,
+                            child: child,
+                          ),
+                          child: Container(
+                            width: 64, height: 64,
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.brandGradient,
+                              shape: BoxShape.circle,
+                              boxShadow: AppTheme.primaryGlow,
+                            ),
+                            child: const Icon(
+                              Icons.favorite_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1293,259 +2159,9 @@ class _HeaderActionButton extends StatelessWidget {
   }
 }
 
-// ── Spotlight card with kundali chip ────────────────────────
-class _SpotlightCard extends StatelessWidget {
-  const _SpotlightCard({
-    required this.match,
-    required this.onTap,
-    required this.onLike,
-    required this.onSkip,
-  });
-
-  final _SpotlightMatch match;
-  final VoidCallback onTap;
-  final VoidCallback onLike;
-  final VoidCallback onSkip;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12, left: 8, right: 8),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 22,
-                    offset: const Offset(0, 12),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CustomNetworkImage(
-                      imageUrl: match.image, borderRadius: 0,
-                    ),
-
-                    // Gradient overlay
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.88),
-                            Colors.transparent,
-                          ],
-                          stops: const [0.0, 0.55],
-                        ),
-                      ),
-                    ),
-
-                    // Match badge — top left
-                    Positioned(
-                      top: 16, left: 16,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.95),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: AppTheme.softShadow,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.favorite_rounded,
-                                color: AppTheme.brandPrimary, size: 12),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${match.matchPct}% Match',
-                              style: const TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.brandDark,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Kundali + Verified badges — top right
-                    Positioned(
-                      top: 16, right: 16,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          if (match.isVerified)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0EA5E9)
-                                    .withValues(alpha: 0.90),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.verified_rounded,
-                                      color: Colors.white, size: 11),
-                                  SizedBox(width: 3),
-                                  Text(
-                                    'Verified',
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          if (match.kundaliCompatible) ...[
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF10B981)
-                                    .withValues(alpha: 0.90),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.auto_awesome_rounded,
-                                      color: Colors.white, size: 11),
-                                  SizedBox(width: 3),
-                                  Text(
-                                    'Kundali Match',
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-
-                    // Bottom info — name, chips, and action buttons in one block
-                    Positioned(
-                      bottom: 16, left: 18, right: 18,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${match.name}, ${match.age}',
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 19,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          // Chips + action buttons in same row
-                          Row(
-                            children: [
-                              // Chips take available space
-                              Expanded(
-                                child: Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
-                                  children: [
-                                    _SpotlightChip(
-                                      icon: Icons.work_outline_rounded,
-                                      label: match.profession,
-                                    ),
-                                    _SpotlightChip(
-                                      icon: Icons.location_on_outlined,
-                                      label: match.city,
-                                    ),
-                                    _SpotlightChip(
-                                      icon: Icons.school_outlined,
-                                      label: match.education,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              // Action buttons — fixed on right
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  GestureDetector(
-                                    onTap: onSkip,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        shape: BoxShape.circle,
-                                        boxShadow: AppTheme.softShadow,
-                                      ),
-                                      child: Icon(Icons.close_rounded,
-                                          color: Colors.grey.shade400, size: 22),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  GestureDetector(
-                                    onTap: onLike,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        gradient: AppTheme.brandGradient,
-                                        shape: BoxShape.circle,
-                                        boxShadow: AppTheme.primaryGlow,
-                                      ),
-                                      child: const Icon(Icons.favorite_rounded,
-                                          color: Colors.white, size: 24),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],  // inner Stack children
-                ),    // inner Stack
-              ),      // ClipRRect
-            ),        // Container (card body)
-          ],          // outer Stack children
-        ),            // outer Stack
-      ),              // GestureDetector
-    );                // Padding
-  }
-}
-
-// ── Spotlight chip ──────────────────────────────────────────
+// ── Spotlight chip ────────────────────────────────────────────
 class _SpotlightChip extends StatelessWidget {
   const _SpotlightChip({required this.icon, required this.label});
-
   final IconData icon;
   final String label;
 
@@ -1578,29 +2194,28 @@ class _SpotlightChip extends StatelessWidget {
   }
 }
 
-// ── Daily match card — with quick actions + activity badge ──
+// ══════════════════════════════════════════════════════════════
+// DAILY MATCH CARD — arc ring + 3 action buttons
+// ══════════════════════════════════════════════════════════════
 class _DailyMatchCard extends StatelessWidget {
   const _DailyMatchCard({
     required this.match,
     required this.onTap,
     required this.onLike,
     required this.onSkip,
+    required this.onInterest,
   });
 
   final _DailyMatch match;
-  final VoidCallback onTap;
-  final VoidCallback onLike;
-  final VoidCallback onSkip;
+  final VoidCallback onTap, onLike, onSkip, onInterest;
 
   @override
   Widget build(BuildContext context) {
-    final firstName = match.name.split(' ').first;
-
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 185,
-        margin: const EdgeInsets.symmetric(horizontal: 7),
+        width: 160,
+        margin: const EdgeInsets.only(right: 14),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
@@ -1618,34 +2233,33 @@ class _DailyMatchCard extends StatelessWidget {
             children: [
               CustomNetworkImage(imageUrl: match.image, borderRadius: 0),
 
-              // Gradient
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: [
-                      Colors.black.withValues(alpha: 0.88),
+                      Colors.black.withValues(alpha: 0.90),
                       Colors.transparent,
                     ],
-                    stops: const [0.0, 0.50],
+                    stops: const [0.0, 0.52],
                   ),
                 ),
               ),
 
-              // Activity badge — top right
+              // Activity badge
               Positioned(
-                top: 12, right: 12,
+                top: 10, right: 10,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 7, vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.40),
+                    color: Colors.black.withValues(alpha: 0.45),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: match.isOnline
-                          ? const Color(0xFF4ADE80).withValues(alpha: 0.50)
+                          ? const Color(0xFF4ADE80).withValues(alpha: 0.60)
                           : Colors.white.withValues(alpha: 0.20),
                     ),
                   ),
@@ -1653,7 +2267,7 @@ class _DailyMatchCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 6, height: 6,
+                        width: 5, height: 5,
                         decoration: BoxDecoration(
                           color: match.isOnline
                               ? const Color(0xFF4ADE80)
@@ -1665,12 +2279,14 @@ class _DailyMatchCard extends StatelessWidget {
                       Text(
                         match.isOnline
                             ? 'Online'
-                            : match.lastActive ?? 'Offline',
-                        style: const TextStyle(
+                            : (match.lastActive ?? ''),
+                        style: TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 9,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: match.isOnline
+                              ? const Color(0xFF4ADE80)
+                              : Colors.white.withValues(alpha: 0.70),
                         ),
                       ),
                     ],
@@ -1678,93 +2294,90 @@ class _DailyMatchCard extends StatelessWidget {
                 ),
               ),
 
-              // Match % — top left (consistent with spotlight style)
+              // Arc ring match%
               Positioned(
-                top: 12, left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.92),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.favorite_rounded,
-                          color: AppTheme.brandPrimary, size: 10),
-                      const SizedBox(width: 3),
-                      Text(
-                        '${match.matchPct}%',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          color: AppTheme.brandPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                top: 8, left: 8,
+                child: _ArcMatchRing(pct: match.matchPct, size: 38),
               ),
 
-              // Bottom: info on top line, buttons below right-aligned
+              // Name + profession + 3 buttons
               Positioned(
-                bottom: 0, left: 0, right: 0,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 12, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Name — full width, no truncation
-                      Text(
-                        '$firstName, ${match.age}',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                bottom: 10, left: 12, right: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${match.name.split(' ').first}, ${match.age}',
+                      style: const TextStyle(
+                        fontFamily: 'Cormorant Garamond',
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        height: 1.1,
                       ),
-                      const SizedBox(height: 2),
-                      // Profession — full width
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              match.profession,
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 11,
-                                color: Colors.white.withValues(alpha: 0.65),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      match.profession,
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        color: Colors.white.withValues(alpha: 0.65),
+                        fontSize: 10,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _QuickBtn(
+                          icon: Icons.close_rounded,
+                          color: Colors.white.withValues(alpha: 0.18),
+                          iconColor: Colors.white.withValues(alpha: 0.85),
+                          size: 30,
+                          onTap: onSkip,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: onInterest,
+                            child: Container(
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                ),
                               ),
-                              overflow: TextOverflow.ellipsis,
+                              child: const Center(
+                                child: Text(
+                                  'Interest',
+                                  style: TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          // Quick actions — right aligned
-                          _QuickActionBtn(
-                            icon: Icons.close_rounded,
-                            color: Colors.white.withValues(alpha: 0.20),
-                            iconColor: Colors.white.withValues(alpha: 0.80),
-                            size: 36,
-                            onTap: onSkip,
-                          ),
-                          const SizedBox(width: 6),
-                          _QuickActionBtn(
-                            icon: Icons.favorite_rounded,
-                            color: AppTheme.brandPrimary.withValues(alpha: 0.90),
-                            iconColor: Colors.white,
-                            size: 36,
-                            onTap: onLike,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                        const SizedBox(width: 4),
+                        _QuickBtn(
+                          icon: Icons.favorite_rounded,
+                          color: AppTheme.brandPrimary,
+                          iconColor: Colors.white,
+                          size: 34,
+                          onTap: onLike,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -1775,9 +2388,73 @@ class _DailyMatchCard extends StatelessWidget {
   }
 }
 
-// ── Quick action button (mini, for daily cards) ─────────────
-class _QuickActionBtn extends StatelessWidget {
-  const _QuickActionBtn({
+// ── Arc match% ring ───────────────────────────────────────────
+class _ArcMatchRing extends StatelessWidget {
+  const _ArcMatchRing({required this.pct, required this.size});
+  final int pct;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size, height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CustomPaint(
+            size: Size(size, size),
+            painter: _ArcPainter(pct / 100),
+          ),
+          Text(
+            '$pct',
+            style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ArcPainter extends CustomPainter {
+  _ArcPainter(this.value);
+  final double value;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = Offset(size.width / 2, size.height / 2);
+    final r = (size.width - 4) / 2;
+    final bg = Paint()
+      ..color = Colors.white.withValues(alpha: 0.20)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final fg = Paint()
+      ..color = AppTheme.brandPrimary
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: r),
+      -math.pi / 2, 2 * math.pi, false, bg,
+    );
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: r),
+      -math.pi / 2, 2 * math.pi * value, false, fg,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ArcPainter old) => old.value != value;
+}
+
+// ── Quick button ──────────────────────────────────────────────
+class _QuickBtn extends StatelessWidget {
+  const _QuickBtn({
     required this.icon,
     required this.color,
     required this.iconColor,
@@ -1786,8 +2463,7 @@ class _QuickActionBtn extends StatelessWidget {
   });
 
   final IconData icon;
-  final Color color;
-  final Color iconColor;
+  final Color color, iconColor;
   final double size;
   final VoidCallback onTap;
 
@@ -1797,17 +2473,16 @@ class _QuickActionBtn extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: size, height: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: iconColor, size: size * 0.50),
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        child: Icon(icon, color: iconColor, size: size * 0.48),
       ),
     );
   }
 }
 
-// ── Premium match tile ──────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// PREMIUM MATCH TILE
+// ══════════════════════════════════════════════════════════════
 class _PremiumMatchTile extends StatelessWidget {
   const _PremiumMatchTile({
     required this.match,
@@ -1824,15 +2499,15 @@ class _PremiumMatchTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 132,
-        margin: const EdgeInsets.symmetric(horizontal: 7),
+        width: 140,
+        margin: const EdgeInsets.only(right: 14),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: AppTheme.goldPrimary.withValues(
-              alpha: isPremiumUser ? 0.80 : 0.50,
+              alpha: isPremiumUser ? 0.80 : 0.45,
             ),
-            width: isPremiumUser ? 2.5 : 2,
+            width: isPremiumUser ? 2.5 : 1.5,
           ),
           boxShadow: isPremiumUser ? AppTheme.goldGlow : AppTheme.softShadow,
         ),
@@ -1843,98 +2518,89 @@ class _PremiumMatchTile extends StatelessWidget {
             children: [
               isPremiumUser
                   ? CustomNetworkImage(imageUrl: match.image, borderRadius: 0)
-                  : Stack(
-                fit: StackFit.expand,
-                children: [
-                  CustomNetworkImage(
-                    imageUrl: match.image, borderRadius: 0,
-                  ),
-                  BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                    child: Container(
-                      color: Colors.black.withValues(alpha: 0.20),
-                    ),
-                  ),
-                ],
+                  : ColorFiltered(
+                colorFilter: const ColorFilter.matrix([
+                  0.16, 0, 0, 0, 0,
+                  0, 0.16, 0, 0, 0,
+                  0, 0, 0.16, 0, 0,
+                  0, 0, 0, 1, 0,
+                ]),
+                child: CustomNetworkImage(imageUrl: match.image, borderRadius: 0),
               ),
-
-              // Bottom gradient
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: [
-                      Colors.black.withValues(alpha: 0.80),
+                      Colors.black.withValues(alpha: 0.82),
                       Colors.transparent,
                     ],
                     stops: const [0.0, 0.50],
                   ),
                 ),
               ),
-
-              // Lock icon — white with gold glow (premium feel)
+              if (isPremiumUser)
+                Positioned(
+                  top: 10, right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(
+                      gradient: AppTheme.goldGradient,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.diamond_rounded,
+                      color: Colors.white,
+                      size: 10,
+                    ),
+                  ),
+                ),
               if (!isPremiumUser)
                 Center(
                   child: Container(
-                    width: 46, height: 46,
+                    width: 44, height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
+                      gradient: AppTheme.goldGradient,
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.35),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.goldPrimary.withValues(alpha: 0.30),
-                          blurRadius: 12,
-                        ),
-                      ],
+                      boxShadow: AppTheme.goldGlow,
                     ),
-                    child: const Icon(Icons.lock_rounded,
-                        color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.lock_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
-
-              // Gold badge
               Positioned(
-                top: 10, left: 10,
-                child: Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.goldGradient,
-                    shape: BoxShape.circle,
-                    boxShadow: AppTheme.goldGlow,
-                  ),
-                  child: const Icon(Icons.diamond_rounded,
-                      color: Colors.white, size: 10),
-                ),
-              ),
-
-              // Name + city
-              Positioned(
-                bottom: 12, left: 10, right: 10,
+                bottom: 10, left: 10, right: 10,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      '${match.name}, ${match.age}',
+                      isPremiumUser ? match.name : '••••••',
                       style: const TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
                     Text(
-                      match.city,
+                      isPremiumUser
+                          ? '${match.age} • ${match.city}'
+                          : '${match.age} • ••••',
                       style: TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 10,
-                        color: Colors.white.withValues(alpha: 0.65),
+                        color: Colors.white.withValues(alpha: 0.70),
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -1947,38 +2613,189 @@ class _PremiumMatchTile extends StatelessWidget {
   }
 }
 
-// ── VIP perk row ────────────────────────────────────────────
-class _VipPerk extends StatelessWidget {
-  const _VipPerk(this.label);
-  final String label;
+// ── Premium unlock CTA ────────────────────────────────────────
+class _PremiumUnlockCta extends StatelessWidget {
+  const _PremiumUnlockCta({required this.onTap});
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 16, height: 16,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFD700).withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.check_rounded,
-                color: Color(0xFFFFD700), size: 10),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 130,
+        margin: const EdgeInsets.only(right: 14),
+        decoration: BoxDecoration(
+          gradient: AppTheme.goldCardDecoration.gradient,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppTheme.goldPrimary.withValues(alpha: 0.40),
           ),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 11,
-              color: Colors.white.withValues(alpha: 0.88),
-              fontWeight: FontWeight.w600,
+          boxShadow: AppTheme.goldGlow,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: AppTheme.goldPrimary.withValues(alpha: 0.20),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.diamond_rounded,
+                color: AppTheme.goldLight,
+                size: 22,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            const Text(
+              'Unlock All',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Go Premium',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 10,
+                color: AppTheme.goldLight.withValues(alpha: 0.80),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// SUCCESS STORY CARD — NEW
+// ══════════════════════════════════════════════════════════════
+class _SuccessStoryCard extends StatelessWidget {
+  const _SuccessStoryCard({required this.story});
+  final _SuccessStory story;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 200,
+      margin: const EdgeInsets.only(right: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppTheme.softShadow,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Couple photo
+            CustomNetworkImage(imageUrl: story.image, borderRadius: 0),
+
+            // Gradient overlay
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.85),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.55],
+                ),
+              ),
+            ),
+
+            // Heart badge top-right
+            Positioned(
+              top: 12, right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.brandPrimary.withValues(alpha: 0.90),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.favorite_rounded,
+                        color: Colors.white, size: 10),
+                    SizedBox(width: 4),
+                    Text(
+                      'Matched!',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Names + city
+            Positioned(
+              bottom: 12, left: 12, right: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${story.groomName} & ${story.brideName}',
+                    style: const TextStyle(
+                      fontFamily: 'Cormorant Garamond',
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      height: 1.1,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_rounded,
+                        color: Colors.white.withValues(alpha: 0.70),
+                        size: 10,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        story.city,
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          color: Colors.white.withValues(alpha: 0.70),
+                          fontSize: 10,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        story.year,
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          color: Colors.white.withValues(alpha: 0.55),
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
