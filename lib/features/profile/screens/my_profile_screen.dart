@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -565,7 +564,7 @@ class _MyProfileScreenState extends State<MyProfileScreen>
           if (_user.isPremium && _shimmerCtrl != null)
             AnimatedBuilder(
               animation: _shimmerCtrl!,
-              builder: (_, __) => Container(
+              builder: (_, _) => Container(
                 width: size,
                 height: size,
                 decoration: BoxDecoration(
@@ -648,7 +647,7 @@ class _MyProfileScreenState extends State<MyProfileScreen>
         barrierColor: Colors.black.withValues(alpha: 0.92),
         transitionDuration: const Duration(milliseconds: 350),
         reverseTransitionDuration: const Duration(milliseconds: 280),
-        pageBuilder: (_, animation, __) {
+        pageBuilder: (_, animation, _) {
           return FadeTransition(
             opacity: animation,
             child: _FullScreenPhotoView(
@@ -962,7 +961,7 @@ class _MyProfileScreenState extends State<MyProfileScreen>
                 tween: Tween(begin: 0, end: pct / 100),
                 duration: const Duration(milliseconds: 900),
                 curve: Curves.easeOutCubic,
-                builder: (_, value, __) => LinearProgressIndicator(
+                builder: (_, value, _) => LinearProgressIndicator(
                   value: value,
                   backgroundColor: Colors.grey.shade100,
                   valueColor: AlwaysStoppedAnimation<Color>(barColor),
@@ -1131,10 +1130,11 @@ class _MyProfileScreenState extends State<MyProfileScreen>
           Navigator.pop(context);
           HapticUtils.heavyImpact();
           // Small delay to let sheet dismiss cleanly
+          final router = GoRouter.of(context);
           await Future.delayed(const Duration(milliseconds: 180));
           if (!mounted) return;
           // TODO: authProvider.signOut()
-          context.go('/login');
+          router.go('/login');
         },
       ),
     );

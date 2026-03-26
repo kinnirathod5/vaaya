@@ -217,8 +217,6 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     context.pop();
   }
 
-  void _markChanged() => setState(() => _hasChanges = true);
-
   // ── Build ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -336,7 +334,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   Widget _buildTabBar() {
     return AnimatedBuilder(
       animation: _tabController,
-      builder: (_, __) => SizedBox(
+      builder: (_, _) => SizedBox(
         height: 46,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
@@ -1532,7 +1530,7 @@ class _ToggleRow extends StatelessWidget {
             scale: 0.85,
             child: Switch(
               value: value, onChanged: onChanged,
-              activeColor: AppTheme.brandPrimary,
+              activeThumbColor: AppTheme.brandPrimary,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),

@@ -177,7 +177,7 @@ class AppRouter {
       // 13. Legacy redirect — /upgrade now resolves to /premium
       GoRoute(
         path: '/upgrade',
-        redirect: (_, __) => '/premium',
+        redirect: (_, _) => '/premium',
       ),
     ],
   );

@@ -346,7 +346,7 @@ class _InterestsScreenState extends State<InterestsScreen>
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
       child: AnimatedBuilder(
         animation: _tabController,
-        builder: (_, __) {
+        builder: (_, _) {
           return Row(
             children: [
               _TabPill(

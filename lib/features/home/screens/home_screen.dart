@@ -999,7 +999,7 @@ class _HomeScreenState extends State<HomeScreen>
             children: [
               AnimatedBuilder(
                 animation: _pulsCtrl,
-                builder: (_, __) => Container(
+                builder: (_, _) => Container(
                   width: 8, height: 8,
                   decoration: BoxDecoration(
                     color: AppTheme.accentGreen.withValues(
@@ -1579,7 +1579,7 @@ class _StarParticlesState extends State<_StarParticles>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _ctrl,
-      builder: (_, __) => CustomPaint(painter: _StarPainter(_ctrl.value)),
+      builder: (_, _) => CustomPaint(painter: _StarPainter(_ctrl.value)),
     );
   }
 }
@@ -1613,8 +1613,8 @@ class _StarPainter extends CustomPainter {
         c.dx + r * 0.4 * math.cos(ia),
         c.dy + r * 0.4 * math.sin(ia),
       );
-      if (i == 0) path.moveTo(o.dx, o.dy);
-      else path.lineTo(o.dx, o.dy);
+      if (i == 0) { path.moveTo(o.dx, o.dy); }
+      else { path.lineTo(o.dx, o.dy); }
       path.lineTo(iv.dx, iv.dy);
     }
     path.close();

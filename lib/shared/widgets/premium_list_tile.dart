@@ -213,7 +213,7 @@ class _PremiumListTileState extends State<PremiumListTile>
               HapticUtils.selectionClick();
               widget.onToggleChanged?.call(v);
             },
-            activeColor: AppTheme.brandPrimary,
+            activeThumbColor: AppTheme.brandPrimary,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         );

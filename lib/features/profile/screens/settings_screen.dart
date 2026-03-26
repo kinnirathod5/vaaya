@@ -914,7 +914,7 @@ class _ToggleTile extends StatelessWidget {
               scale: 0.85,
               child: Switch(
                 value: value, onChanged: onChanged,
-                activeColor: iconColor,
+                activeThumbColor: iconColor,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),

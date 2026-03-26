@@ -230,7 +230,7 @@ class _SplashScreenState extends State<SplashScreen>
           top: -80, right: -80,
           child: AnimatedBuilder(
             animation: _ringCtrl,
-            builder: (_, __) => Opacity(
+            builder: (_, _) => Opacity(
               opacity: _ringOpacity.value * 0.9,
               child: Container(
                 width: 320, height: 320,
@@ -247,7 +247,7 @@ class _SplashScreenState extends State<SplashScreen>
           bottom: -60, left: -60,
           child: AnimatedBuilder(
             animation: _logoCtrl,
-            builder: (_, __) => Opacity(
+            builder: (_, _) => Opacity(
               opacity: _logoOpacity.value * 0.8,
               child: Container(
                 width: 260, height: 260,
@@ -264,7 +264,7 @@ class _SplashScreenState extends State<SplashScreen>
           top: 120, right: -40,
           child: AnimatedBuilder(
             animation: _particleCtrl,
-            builder: (_, __) => Opacity(
+            builder: (_, _) => Opacity(
               opacity: _particleCtrl.value * 0.12,
               child: Container(
                 width: 160, height: 160,
@@ -280,7 +280,7 @@ class _SplashScreenState extends State<SplashScreen>
         Center(
           child: AnimatedBuilder(
             animation: _logoCtrl,
-            builder: (_, __) => Opacity(
+            builder: (_, _) => Opacity(
               opacity: _logoOpacity.value * 0.5,
               child: Container(
                 width: 420, height: 420,
@@ -322,11 +322,11 @@ class _SplashScreenState extends State<SplashScreen>
           // Rotating gold constellation ring
           AnimatedBuilder(
             animation: _rotateCtrl,
-            builder: (_, __) => Transform.rotate(
+            builder: (_, _) => Transform.rotate(
               angle: _rotateCtrl.value * 2 * math.pi,
               child: AnimatedBuilder(
                 animation: _ringCtrl,
-                builder: (_, __) => Opacity(
+                builder: (_, _) => Opacity(
                   opacity: _ringOpacity.value * 0.70,
                   child: CustomPaint(
                     size: const Size(172, 172),
@@ -343,7 +343,7 @@ class _SplashScreenState extends State<SplashScreen>
           // Outer circle
           AnimatedBuilder(
             animation: _ringCtrl,
-            builder: (_, __) => Transform.scale(
+            builder: (_, _) => Transform.scale(
               scale: _ringScale.value,
               child: Opacity(
                 opacity: _ringOpacity.value,
@@ -364,7 +364,7 @@ class _SplashScreenState extends State<SplashScreen>
           // Inner ring
           AnimatedBuilder(
             animation: _ringCtrl,
-            builder: (_, __) => Transform.scale(
+            builder: (_, _) => Transform.scale(
               scale: _ringScale.value,
               child: Opacity(
                 opacity: _ringOpacity.value,
@@ -385,9 +385,9 @@ class _SplashScreenState extends State<SplashScreen>
           // Pulsing glow halo
           AnimatedBuilder(
             animation: _particleCtrl,
-            builder: (_, __) => AnimatedBuilder(
+            builder: (_, _) => AnimatedBuilder(
               animation: _logoCtrl,
-              builder: (_, __) => Opacity(
+              builder: (_, _) => Opacity(
                 opacity: _logoOpacity.value *
                     (0.3 + _particleCtrl.value * 0.35),
                 child: Container(
@@ -410,7 +410,7 @@ class _SplashScreenState extends State<SplashScreen>
           // Brand gradient circle with spa icon
           AnimatedBuilder(
             animation: _logoCtrl,
-            builder: (_, __) => Transform.scale(
+            builder: (_, _) => Transform.scale(
               scale: _logoScale.value,
               child: Opacity(
                 opacity: _logoOpacity.value,
@@ -457,7 +457,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget _buildAppName() {
     return AnimatedBuilder(
       animation: _textCtrl,
-      builder: (_, __) => FadeTransition(
+      builder: (_, _) => FadeTransition(
         opacity: _textOpacity,
         child: SlideTransition(
           position: _textSlide,
@@ -540,7 +540,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget _buildTagline() {
     return AnimatedBuilder(
       animation: _taglineCtrl,
-      builder: (_, __) => FadeTransition(
+      builder: (_, _) => FadeTransition(
         opacity: _taglineOpacity,
         child: SlideTransition(
           position: _taglineSlide,
@@ -580,7 +580,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget _buildOrnament() {
     return AnimatedBuilder(
       animation: _ornamentCtrl,
-      builder: (_, __) => FadeTransition(
+      builder: (_, _) => FadeTransition(
         opacity: _ornamentOpacity,
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -656,7 +656,7 @@ class _SplashScreenState extends State<SplashScreen>
         padding: const EdgeInsets.only(bottom: 36),
         child: AnimatedBuilder(
           animation: _dotsCtrl,
-          builder: (_, __) => FadeTransition(
+          builder: (_, _) => FadeTransition(
             opacity: _dotsOpacity,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -826,7 +826,7 @@ class _BouncingDotsState extends State<_BouncingDots>
       children: List.generate(3, (i) {
         return AnimatedBuilder(
           animation: _bounce,
-          builder: (_, __) {
+          builder: (_, _) {
             final t   = (_bounce.value - i * 0.22).clamp(0.0, 1.0);
             final dy  = math.sin(t * math.pi);
             final isMiddle = i == 1;

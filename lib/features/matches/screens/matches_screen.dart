@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -541,7 +540,7 @@ class _SearchField extends StatelessWidget {
           ),
           suffixIcon: ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller,
-            builder: (_, v, __) {
+            builder: (_, v, _) {
               if (v.text.isEmpty) return const SizedBox.shrink();
               return GestureDetector(
                 onTap: onClear,
@@ -1423,7 +1422,7 @@ class _SheetToggle extends StatelessWidget {
                 HapticUtils.selectionClick();
                 onChanged(v);
               },
-              activeColor: AppTheme.brandPrimary,
+              activeThumbColor: AppTheme.brandPrimary,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),

@@ -153,7 +153,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void _markAllRead() {
     HapticUtils.mediumImpact();
     setState(() {
-      for (final n in _notifications) n['isRead'] = true;
+      for (final n in _notifications) { n['isRead'] = true; }
     });
   }
 

@@ -56,12 +56,14 @@ class AppTheme {
   // SPACING SYSTEM
   // Use AppTheme.sp.xs / sm / md / lg / xl / xxl
   // ══════════════════════════════════════════════════════════
+  // ignore: library_private_types_in_public_api
   static const _Spacing sp = _Spacing();
 
   // ══════════════════════════════════════════════════════════
   // BORDER RADIUS SYSTEM
   // Use AppTheme.r.xs / sm / md / lg / xl / full
   // ══════════════════════════════════════════════════════════
+  // ignore: library_private_types_in_public_api
   static const _Radius r = _Radius();
 
   // ══════════════════════════════════════════════════════════

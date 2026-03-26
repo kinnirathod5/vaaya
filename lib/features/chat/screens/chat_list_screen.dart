@@ -657,7 +657,7 @@ class _SearchField extends StatelessWidget {
           ),
           suffixIcon: ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller,
-            builder: (_, v, __) {
+            builder: (_, v, _) {
               if (v.text.isEmpty) return const SizedBox.shrink();
               return GestureDetector(
                 onTap: onClear,

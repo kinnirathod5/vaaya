@@ -268,7 +268,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
               alignment: Alignment.centerRight,
               child: AnimatedBuilder(
                 animation: _controller,
-                builder: (_, __) {
+                builder: (_, _) {
                   final count = _controller.text.length;
                   final limit = widget.maxLength!;
                   final isNearLimit = count >= (limit * 0.85).round();

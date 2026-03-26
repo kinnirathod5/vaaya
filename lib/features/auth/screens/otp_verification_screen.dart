@@ -3,28 +3,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/haptic_utils.dart';
 import '../../../../shared/animations/fade_animation.dart';
+import '../../../../shared/widgets/auth_background.dart';
+import '../../../../shared/widgets/auth_bottom_text.dart';
+import '../../../../shared/widgets/auth_snackbar.dart';
+import '../../../../shared/widgets/handle_bar.dart';
 
 // ============================================================
-// 🔐 OTP VERIFICATION SCREEN — v2.0 All Widgets Inlined
+// 🔐 OTP VERIFICATION SCREEN — v3.0 Consistent Redesign
 //
-// IMPROVEMENTS vs v1:
-//   ✅ auth_background.dart, otp_input_row.dart,
-//      auth_bottom_text.dart — all inlined
-//   ✅ OTP boxes: AnimatedContainer border + bg color change
-//      on focused/filled/error states
-//   ✅ Phone chip: flag emoji + formatted number + Change link
-//   ✅ Error message: AnimatedContainer height collapse
-//   ✅ Verify button: check_circle icon when 6 digits filled
-//   ✅ Resend timer: countdown + active state switch
-//   ✅ Custom premium snackbar for resend success
-//   ✅ Lock icon in header with brandGradient bg
-//   ✅ Shake animation on wrong OTP
-//   ✅ All text: maxLines + overflow
+// Changes from v2:
+//   ✅ Uses shared AuthBackground (no more duplicate)
+//   ✅ Uses shared AuthBottomText (no more duplicate)
+//   ✅ Uses shared HandleBar widget
+//   ✅ Uses shared AuthSnackbar utility
+//   ✅ Uses AuthConstants for all design tokens
+//   ✅ Fixed FocusNode listener memory leak in _OtpBoxState
+//   ✅ Fixed AnimatedBuilder → ListenableBuilder
+//   ✅ Fixed duplicate _ parameter names
+//   ✅ Added PopScope to prevent back during verification
+//   ✅ Card radius, button radius/height match Login screen
+//   ✅ Animation durations + intervals match Login screen
 //
-// TODO: authProvider.verifyOTP(otp) — Riverpod
+// Preserved:
+//   ✅ All logic: OTP verify, shake, resend timer
+//   ✅ Phone chip with Change link
+//   ✅ Error collapse animation
+//   ✅ TODO markers for backend hooks
 // ============================================================
 
 class OtpVerificationScreen extends StatefulWidget {
@@ -37,28 +45,27 @@ class OtpVerificationScreen extends StatefulWidget {
 
 class _OtpVerificationScreenState extends State<OtpVerificationScreen>
     with TickerProviderStateMixin {
-
   final List<TextEditingController> _otpCtrl =
   List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes =
   List.generate(6, (_) => FocusNode());
 
-  bool   _isLoading = false;
-  bool   _isError   = false;
-  String _errorMsg  = '';
-  String _phone     = '';
+  bool _isLoading = false;
+  bool _isError   = false;
+  String _errorMsg = '';
+  String _phone    = '';
 
-  int    _resendSecs = 30;
+  int _resendSecs  = 30;
   Timer? _resendTimer;
-  bool   _canResend  = false;
+  bool _canResend  = false;
 
   late final AnimationController _entryCtrl;
   late final AnimationController _shakeCtrl;
 
   late final Animation<double> _headerOpacity;
-  late final Animation<Offset>  _headerSlide;
+  late final Animation<Offset> _headerSlide;
   late final Animation<double> _contentOpacity;
-  late final Animation<Offset>  _contentSlide;
+  late final Animation<Offset> _contentSlide;
   late final Animation<double> _shakeAnim;
 
   @override
@@ -75,51 +82,83 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
       if (extra is String) setState(() => _phone = extra);
       _entryCtrl.forward();
       _startTimer();
-      Future.delayed(const Duration(milliseconds: 600),
-              () { if (mounted) _focusNodes[0].requestFocus(); });
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) _focusNodes[0].requestFocus();
+      });
     });
   }
 
   void _initAnimations() {
     _entryCtrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 900),
+      vsync: this,
+      duration: AuthConstants.entryDuration,
     );
     _shakeCtrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 480),
+      vsync: this,
+      duration: const Duration(milliseconds: 480),
     );
 
     _headerOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _entryCtrl,
-          curve: const Interval(0.0, 0.5, curve: Curves.easeOut)),
+      CurvedAnimation(
+        parent: _entryCtrl,
+        curve: Interval(
+          AuthConstants.headerStart,
+          AuthConstants.headerEnd,
+          curve: Curves.easeOut,
+        ),
+      ),
     );
     _headerSlide = Tween<Offset>(
-      begin: const Offset(0, -0.20), end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entryCtrl,
-        curve: const Interval(0.0, 0.60, curve: Curves.easeOutCubic)));
+      begin: const Offset(0, -0.20),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _entryCtrl,
+      curve: const Interval(0.0, 0.60, curve: Curves.easeOutCubic),
+    ));
 
     _contentOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _entryCtrl,
-          curve: const Interval(0.25, 0.85, curve: Curves.easeOut)),
+      CurvedAnimation(
+        parent: _entryCtrl,
+        curve: Interval(
+          AuthConstants.contentStart,
+          AuthConstants.contentEnd,
+          curve: Curves.easeOut,
+        ),
+      ),
     );
     _contentSlide = Tween<Offset>(
-      begin: const Offset(0, 0.18), end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entryCtrl,
-        curve: const Interval(0.25, 1.0, curve: Curves.easeOutCubic)));
+      begin: const Offset(0, 0.18),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _entryCtrl,
+      curve: const Interval(0.30, 1.0, curve: Curves.easeOutCubic),
+    ));
 
     _shakeAnim = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0.0,   end: -14.0), weight: 1),
-      TweenSequenceItem(tween: Tween(begin: -14.0, end:  14.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: 14.0,  end:  -8.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: -8.0,  end:   8.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: 8.0,   end:   0.0), weight: 1),
+      TweenSequenceItem(
+          tween: Tween(begin: 0.0, end: -14.0), weight: 1),
+      TweenSequenceItem(
+          tween: Tween(begin: -14.0, end: 14.0), weight: 2),
+      TweenSequenceItem(
+          tween: Tween(begin: 14.0, end: -8.0), weight: 2),
+      TweenSequenceItem(
+          tween: Tween(begin: -8.0, end: 8.0), weight: 2),
+      TweenSequenceItem(
+          tween: Tween(begin: 8.0, end: 0.0), weight: 1),
     ]).animate(CurvedAnimation(
-        parent: _shakeCtrl, curve: Curves.easeInOut));
+      parent: _shakeCtrl,
+      curve: Curves.easeInOut,
+    ));
   }
 
   @override
   void dispose() {
-    for (final c in _otpCtrl) c.dispose();
-    for (final f in _focusNodes) f.dispose();
+    for (final c in _otpCtrl) {
+      c.dispose();
+    }
+    for (final f in _focusNodes) {
+      f.dispose();
+    }
     _entryCtrl.dispose();
     _shakeCtrl.dispose();
     _resendTimer?.cancel();
@@ -128,21 +167,30 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
 
   void _startTimer() {
     _resendSecs = 30;
-    _canResend  = false;
+    _canResend = false;
     _resendTimer?.cancel();
     _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) { t.cancel(); return; }
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
       setState(() {
         _resendSecs--;
-        if (_resendSecs <= 0) { _canResend = true; t.cancel(); }
+        if (_resendSecs <= 0) {
+          _canResend = true;
+          t.cancel();
+        }
       });
     });
   }
 
   void _onOtpChanged(int i, String v) {
     if (_isError) setState(() => _isError = false);
-    if (v.length == 1 && i < 5) _focusNodes[i + 1].requestFocus();
-    else if (v.isEmpty && i > 0) _focusNodes[i - 1].requestFocus();
+    if (v.length == 1 && i < 5) {
+      _focusNodes[i + 1].requestFocus();
+    } else if (v.isEmpty && i > 0) {
+      _focusNodes[i - 1].requestFocus();
+    }
     if (_otpCtrl.map((c) => c.text).join().length == 6) {
       Future.delayed(const Duration(milliseconds: 150), _verify);
     }
@@ -152,28 +200,33 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
     final otp = _otpCtrl.map((c) => c.text).join();
     if (otp.length < 6 || _isLoading) return;
     HapticUtils.mediumImpact();
-    for (final f in _focusNodes) f.unfocus();
+    for (final f in _focusNodes) {
+      f.unfocus();
+    }
     setState(() => _isLoading = true);
     try {
       // TODO: authProvider.verifyOTP(otp)
       await Future.delayed(const Duration(milliseconds: 1600));
       if (!mounted) return;
       // TODO: bool isNewUser = await authProvider.checkIsNewUser()
-      const bool isNewUser = true;
+      // TODO: replace with: context.go(isNewUser ? '/onboarding' : '/dashboard')
       HapticUtils.heavyImpact();
-      context.go(isNewUser ? '/onboarding' : '/dashboard');
+      context.go('/onboarding');
     } catch (_) {
       if (!mounted) return;
       HapticUtils.errorVibrate();
       _shakeCtrl.forward(from: 0);
       setState(() {
-        _isError  = true;
+        _isError = true;
         _isLoading = false;
-        _errorMsg  = 'Incorrect OTP. Please try again.';
+        _errorMsg = 'Incorrect OTP. Please try again.';
       });
-      for (final c in _otpCtrl) c.clear();
-      Future.delayed(const Duration(milliseconds: 100),
-              () => _focusNodes[0].requestFocus());
+      for (final c in _otpCtrl) {
+        c.clear();
+      }
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) _focusNodes[0].requestFocus();
+      });
     }
   }
 
@@ -181,74 +234,56 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
     if (!_canResend) return;
     HapticUtils.lightImpact();
     // TODO: authProvider.resendOTP(_phone)
-    for (final c in _otpCtrl) c.clear();
-    setState(() { _isError = false; _errorMsg = ''; });
+    for (final c in _otpCtrl) {
+      c.clear();
+    }
+    setState(() {
+      _isError = false;
+      _errorMsg = '';
+    });
     _startTimer();
-    Future.delayed(const Duration(milliseconds: 100),
-            () => _focusNodes[0].requestFocus());
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) _focusNodes[0].requestFocus();
+    });
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        elevation: 0,
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.transparent,
-        duration: const Duration(seconds: 2),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        content: Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 16, vertical: 13),
-          decoration: BoxDecoration(
-            color: AppTheme.success,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [BoxShadow(
-              color: AppTheme.success.withValues(alpha: 0.30),
-              blurRadius: 12, offset: const Offset(0, 4),
-            )],
-          ),
-          child: const Row(children: [
-            Icon(Icons.check_circle_rounded,
-                color: Colors.white, size: 18),
-            SizedBox(width: 10),
-            Text('OTP sent again ✓', style: TextStyle(
-              fontFamily: 'Poppins', color: Colors.white,
-              fontSize: 13, fontWeight: FontWeight.w600,
-            )),
-          ]),
-        ),
-      ),
-    );
+    AuthSnackbar.showSuccess(context, 'OTP sent again ✓');
   }
 
-  String _fmt(String p) => p.length == 10
-      ? '${p.substring(0, 5)} ${p.substring(5)}'
-      : p;
+  String _fmt(String p) =>
+      p.length == 10 ? '${p.substring(0, 5)} ${p.substring(5)}' : p;
 
-  // ── Build ──────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════
+  // BUILD
+  // ══════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
     final keyboardH = MediaQuery.of(context).viewInsets.bottom;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFDF8F9),
-      resizeToAvoidBottomInset: true,
-      body: Stack(
-        children: [
-          const _AuthBackground(),
-          SafeArea(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.only(
-                  bottom: keyboardH > 0 ? keyboardH : 0),
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  _buildFormCard(bottomPad),
-                ],
+    return PopScope(
+      canPop: !_isLoading,
+      child: Scaffold(
+        backgroundColor: AuthConstants.scaffoldBg,
+        resizeToAvoidBottomInset: true,
+        body: Stack(
+          children: [
+            const AuthBackground(),
+            SafeArea(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.only(
+                  bottom: keyboardH > 0 ? keyboardH : 0,
+                ),
+                child: Column(
+                  children: [
+                    _buildHeader(),
+                    _buildFormCard(bottomPad),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -257,9 +292,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
   // HEADER
   // ══════════════════════════════════════════════════════════
   Widget _buildHeader() {
-    return AnimatedBuilder(
-      animation: _entryCtrl,
-      builder: (_, __) => FadeTransition(
+    return ListenableBuilder(
+      listenable: _entryCtrl,
+      builder: (context, child) => FadeTransition(
         opacity: _headerOpacity,
         child: SlideTransition(
           position: _headerSlide,
@@ -268,12 +303,16 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 // Back button
                 GestureDetector(
-                  onTap: () { HapticUtils.lightImpact(); context.pop(); },
+                  onTap: () {
+                    if (_isLoading) return;
+                    HapticUtils.lightImpact();
+                    context.pop();
+                  },
                   child: Container(
-                    width: 42, height: 42,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
@@ -282,7 +321,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                     ),
                     child: const Icon(
                       Icons.arrow_back_ios_new_rounded,
-                      color: AppTheme.brandDark, size: 16,
+                      color: AppTheme.brandDark,
+                      size: 16,
                     ),
                   ),
                 ),
@@ -290,7 +330,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
 
                 // Lock icon
                 Container(
-                  width: 56, height: 56,
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
                     gradient: AppTheme.brandGradient,
                     borderRadius: BorderRadius.circular(18),
@@ -298,7 +339,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                   ),
                   child: const Icon(
                     Icons.lock_open_rounded,
-                    color: Colors.white, size: 26,
+                    color: Colors.white,
+                    size: 26,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -307,11 +349,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                 const Text(
                   'Verify your\nphone number',
                   style: TextStyle(
-                    fontFamily:  'Cormorant Garamond',
-                    fontSize:    36,
-                    fontWeight:  FontWeight.w700,
-                    color:       AppTheme.brandDark,
-                    height:      1.15,
+                    fontFamily: 'Cormorant Garamond',
+                    fontSize: 36,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.brandDark,
+                    height: 1.15,
                     letterSpacing: -0.5,
                   ),
                 ),
@@ -320,8 +362,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                   'We sent a 6-digit code to your number.',
                   style: TextStyle(
                     fontFamily: 'Poppins',
-                    fontSize:   13,
-                    color:      Colors.grey.shade500,
+                    fontSize: 13,
+                    color: Colors.grey.shade500,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -329,12 +371,15 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                 // Phone chip — flag + number + Change
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 8),
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.brandPrimary.withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppTheme.brandPrimary.withValues(alpha: 0.15),
+                      color:
+                      AppTheme.brandPrimary.withValues(alpha: 0.15),
                     ),
                   ),
                   child: Row(
@@ -346,23 +391,27 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                       Text(
                         '+91 ${_fmt(_phone)}',
                         style: const TextStyle(
-                          fontFamily:  'Poppins',
-                          fontSize:    13,
-                          fontWeight:  FontWeight.w700,
-                          color:       AppTheme.brandDark,
+                          fontFamily: 'Poppins',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.brandDark,
                           letterSpacing: 0.5,
                         ),
                       ),
                       const SizedBox(width: 10),
                       GestureDetector(
-                        onTap: () { HapticUtils.lightImpact(); context.pop(); },
+                        onTap: () {
+                          if (_isLoading) return;
+                          HapticUtils.lightImpact();
+                          context.pop();
+                        },
                         child: const Text(
                           'Change',
                           style: TextStyle(
-                            fontFamily:  'Poppins',
-                            fontSize:    12,
-                            fontWeight:  FontWeight.w700,
-                            color:       AppTheme.brandPrimary,
+                            fontFamily: 'Poppins',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.brandPrimary,
                           ),
                         ),
                       ),
@@ -381,29 +430,33 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
   // FORM CARD
   // ══════════════════════════════════════════════════════════
   Widget _buildFormCard(double bottomPad) {
-    return AnimatedBuilder(
-      animation: _entryCtrl,
-      builder: (_, __) => FadeTransition(
+    return ListenableBuilder(
+      listenable: _entryCtrl,
+      builder: (context, child) => FadeTransition(
         opacity: _contentOpacity,
         child: SlideTransition(
           position: _contentSlide,
           child: Container(
             margin: const EdgeInsets.only(top: 28),
-            padding: EdgeInsets.fromLTRB(24, 28, 24, 24 + bottomPad),
+            padding: EdgeInsets.fromLTRB(
+              24, 28, 24, 24 + bottomPad,
+            ),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(32),
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(AuthConstants.cardRadius),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.brandPrimary.withValues(alpha: 0.10),
-                  blurRadius: 30,
+                  color: AppTheme.brandPrimary
+                      .withValues(alpha: AuthConstants.cardShadowAlpha),
+                  blurRadius: AuthConstants.cardShadowBlur,
                   offset: const Offset(0, -6),
                 ),
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 20,
+                  color: Colors.black
+                      .withValues(alpha: AuthConstants.cardBlackAlpha),
+                  blurRadius: AuthConstants.cardBlackBlur,
                   offset: const Offset(0, -4),
                 ),
               ],
@@ -411,26 +464,17 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 // Handle bar
-                Center(
-                  child: Container(
-                    width: 36, height: 4,
-                    decoration: BoxDecoration(
-                      color: AppTheme.brandPrimary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 22),
+                const HandleBar(),
+                SizedBox(height: AuthConstants.afterHandleBar),
 
                 const Text(
                   'Enter the 6-digit code',
                   style: TextStyle(
-                    fontFamily:  'Cormorant Garamond',
-                    fontSize:    24,
-                    fontWeight:  FontWeight.w700,
-                    color:       AppTheme.brandDark,
+                    fontFamily: 'Cormorant Garamond',
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.brandDark,
                     letterSpacing: -0.3,
                   ),
                 ),
@@ -439,17 +483,17 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                 // OTP boxes + shake
                 FadeAnimation(
                   delayInMs: 260,
-                  child: AnimatedBuilder(
-                    animation: _shakeCtrl,
-                    builder: (_, child) => Transform.translate(
+                  child: ListenableBuilder(
+                    listenable: _shakeCtrl,
+                    builder: (context, child) => Transform.translate(
                       offset: Offset(_shakeAnim.value, 0),
                       child: child,
                     ),
                     child: _OtpInputRow(
                       controllers: _otpCtrl,
-                      focusNodes:  _focusNodes,
-                      isError:     _isError,
-                      onChanged:   _onOtpChanged,
+                      focusNodes: _focusNodes,
+                      isError: _isError,
+                      onChanged: _onOtpChanged,
                     ),
                   ),
                 ),
@@ -460,20 +504,25 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                   duration: const Duration(milliseconds: 200),
                   height: _isError ? 28 : 0,
                   child: _isError
-                      ? Row(children: [
-                    const Icon(Icons.error_outline_rounded,
-                        size: 14, color: AppTheme.error),
-                    const SizedBox(width: 5),
-                    Text(
-                      _errorMsg,
-                      style: const TextStyle(
-                        fontFamily:  'Poppins',
-                        fontSize:    11,
-                        color:       AppTheme.error,
-                        fontWeight:  FontWeight.w500,
+                      ? Row(
+                    children: [
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        size: 14,
+                        color: AppTheme.error,
                       ),
-                    ),
-                  ])
+                      const SizedBox(width: 5),
+                      Text(
+                        _errorMsg,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11,
+                          color: AppTheme.error,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  )
                       : const SizedBox.shrink(),
                 ),
                 const SizedBox(height: 22),
@@ -493,9 +542,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                 const SizedBox(height: 22),
 
                 // Terms
-                FadeAnimation(
+                const FadeAnimation(
                   delayInMs: 460,
-                  child: const _AuthBottomText(),
+                  child: AuthBottomText(),
                 ),
               ],
             ),
@@ -508,31 +557,34 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
   // ── Verify button ─────────────────────────────────────────
   Widget _buildVerifyBtn() {
     final otp = _otpCtrl.map((c) => c.text).join();
-    final ok  = otp.length == 6 && !_isError;
+    final ok = otp.length == 6 && !_isError;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
-      width: double.infinity, height: 54,
+      width: double.infinity,
+      height: AuthConstants.buttonHeight,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: ok
               ? [AppTheme.brandPrimary, const Color(0xFFFF6B84)]
               : [Colors.grey.shade200, Colors.grey.shade200],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AuthConstants.buttonRadius),
         boxShadow: ok ? AppTheme.primaryGlow : [],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: ok ? _verify : null,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AuthConstants.buttonRadius),
           child: Center(
             child: _isLoading
                 ? const SizedBox(
-              width: 22, height: 22,
+              width: 22,
+              height: 22,
               child: CircularProgressIndicator(
-                color: Colors.white, strokeWidth: 2.5,
+                color: Colors.white,
+                strokeWidth: 2.5,
               ),
             )
                 : Row(
@@ -541,17 +593,20 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                 Text(
                   'Verify',
                   style: TextStyle(
-                    fontFamily:  'Poppins',
-                    fontSize:    15,
-                    fontWeight:  FontWeight.w700,
+                    fontFamily: 'Poppins',
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                     color: ok ? Colors.white : Colors.grey.shade400,
                     letterSpacing: 0.2,
                   ),
                 ),
                 if (ok) ...[
                   const SizedBox(width: 8),
-                  const Icon(Icons.check_circle_rounded,
-                      color: Colors.white, size: 17),
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: Colors.white,
+                    size: 17,
+                  ),
                 ],
               ],
             ),
@@ -570,8 +625,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
           "Didn't receive the code? ",
           style: TextStyle(
             fontFamily: 'Poppins',
-            fontSize:   13,
-            color:      Colors.grey.shade500,
+            fontSize: 13,
+            color: Colors.grey.shade500,
           ),
         ),
         GestureDetector(
@@ -580,99 +635,25 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
               ? const Text(
             'Resend',
             style: TextStyle(
-              fontFamily:  'Poppins',
-              fontSize:    13,
-              fontWeight:  FontWeight.w700,
-              color:       AppTheme.brandPrimary,
+              fontFamily: 'Poppins',
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.brandPrimary,
             ),
           )
               : Text(
             'Resend in ${_resendSecs}s',
             style: TextStyle(
-              fontFamily:  'Poppins',
-              fontSize:    13,
-              fontWeight:  FontWeight.w600,
-              color:       Colors.grey.shade400,
+              fontFamily: 'Poppins',
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade400,
             ),
           ),
         ),
       ],
     );
   }
-}
-
-// ══════════════════════════════════════════════════════════════
-// AUTH BACKGROUND — shared between login + otp
-// ══════════════════════════════════════════════════════════════
-class _AuthBackground extends StatelessWidget {
-  const _AuthBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Container(color: const Color(0xFFFDF8F9)),
-        Positioned(
-          top: -100, right: -80,
-          child: Container(
-            width: 300, height: 300,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppTheme.brandPrimary.withValues(alpha: 0.08),
-            ),
-          ),
-        ),
-        Positioned(
-          top: 160, left: -80,
-          child: Container(
-            width: 220, height: 220,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppTheme.brandPrimary.withValues(alpha: 0.05),
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: 100, right: -60,
-          child: Container(
-            width: 180, height: 180,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppTheme.goldPrimary.withValues(alpha: 0.04),
-            ),
-          ),
-        ),
-        Positioned(
-          top: 0, left: 0, right: 0,
-          child: SizedBox(
-            height: 220,
-            child: CustomPaint(painter: _DotGridPainter()),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DotGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppTheme.brandPrimary.withValues(alpha: 0.05)
-      ..style = PaintingStyle.fill;
-    const s = 26.0;
-    final cols = (size.width / s).ceil() + 1;
-    final rows = (size.height / s).ceil() + 1;
-    for (int r = 0; r < rows; r++) {
-      for (int c = 0; c < cols; c++) {
-        canvas.drawCircle(
-          Offset(c * s + (r.isOdd ? s / 2 : 0), r * s * 0.88),
-          1.3, paint,
-        );
-      }
-    }
-  }
-  @override bool shouldRepaint(_DotGridPainter _) => false;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -685,9 +666,9 @@ class _OtpInputRow extends StatelessWidget {
     required this.isError,
     required this.onChanged,
   });
-  final List<TextEditingController>          controllers;
-  final List<FocusNode>                      focusNodes;
-  final bool                                 isError;
+  final List<TextEditingController> controllers;
+  final List<FocusNode> focusNodes;
+  final bool isError;
   final void Function(int index, String val) onChanged;
 
   @override
@@ -698,9 +679,9 @@ class _OtpInputRow extends StatelessWidget {
         6,
             (i) => _OtpBox(
           controller: controllers[i],
-          focusNode:  focusNodes[i],
-          isError:    isError,
-          onChanged:  (v) => onChanged(i, v),
+          focusNode: focusNodes[i],
+          isError: isError,
+          onChanged: (v) => onChanged(i, v),
         ),
       ),
     );
@@ -715,9 +696,9 @@ class _OtpBox extends StatefulWidget {
     required this.onChanged,
   });
   final TextEditingController controller;
-  final FocusNode             focusNode;
-  final bool                  isError;
-  final ValueChanged<String>  onChanged;
+  final FocusNode focusNode;
+  final bool isError;
+  final ValueChanged<String> onChanged;
 
   @override
   State<_OtpBox> createState() => _OtpBoxState();
@@ -725,13 +706,21 @@ class _OtpBox extends StatefulWidget {
 
 class _OtpBoxState extends State<_OtpBox> {
   bool _isFocused = false;
+  late final VoidCallback _focusListener;
 
   @override
   void initState() {
     super.initState();
-    widget.focusNode.addListener(() {
+    _focusListener = () {
       if (mounted) setState(() => _isFocused = widget.focusNode.hasFocus);
-    });
+    };
+    widget.focusNode.addListener(_focusListener);
+  }
+
+  @override
+  void dispose() {
+    widget.focusNode.removeListener(_focusListener);
+    super.dispose();
   }
 
   @override
@@ -740,7 +729,8 @@ class _OtpBoxState extends State<_OtpBox> {
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
-      width: 44, height: 56,
+      width: 44,
+      height: 56,
       decoration: BoxDecoration(
         color: widget.isError
             ? const Color(0xFFFFF0F0)
@@ -761,75 +751,35 @@ class _OtpBoxState extends State<_OtpBox> {
           width: _isFocused ? 2.0 : 1.5,
         ),
         boxShadow: _isFocused && !widget.isError
-            ? [BoxShadow(
-          color: AppTheme.brandPrimary.withValues(alpha: 0.15),
-          blurRadius: 10,
-          offset: const Offset(0, 3),
-        )]
+            ? [
+          BoxShadow(
+            color:
+            AppTheme.brandPrimary.withValues(alpha: 0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ]
             : [],
       ),
       child: TextField(
-        controller:      widget.controller,
-        focusNode:       widget.focusNode,
-        keyboardType:    TextInputType.number,
-        maxLength:       1,
-        textAlign:       TextAlign.center,
-        onChanged:       widget.onChanged,
+        controller: widget.controller,
+        focusNode: widget.focusNode,
+        keyboardType: TextInputType.number,
+        maxLength: 1,
+        textAlign: TextAlign.center,
+        onChanged: widget.onChanged,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         style: TextStyle(
-          fontFamily:  'Poppins',
-          fontSize:    20,
-          fontWeight:  FontWeight.w800,
+          fontFamily: 'Poppins',
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
           color: widget.isError ? AppTheme.error : AppTheme.brandDark,
         ),
         decoration: const InputDecoration(
-          border:         InputBorder.none,
-          counterText:    '',
+          border: InputBorder.none,
+          counterText: '',
           contentPadding: EdgeInsets.zero,
         ),
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-// AUTH BOTTOM TEXT — Terms + Privacy
-// ══════════════════════════════════════════════════════════════
-class _AuthBottomText extends StatelessWidget {
-  const _AuthBottomText();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text.rich(
-        TextSpan(
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize:   11,
-            color:      Colors.grey.shade400,
-            height:     1.6,
-          ),
-          children: const [
-            TextSpan(text: 'By continuing you agree to our '),
-            TextSpan(
-              text: 'Terms of Service',
-              style: TextStyle(
-                color:      AppTheme.brandPrimary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            TextSpan(text: ' and '),
-            TextSpan(
-              text: 'Privacy Policy',
-              style: TextStyle(
-                color:      AppTheme.brandPrimary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            TextSpan(text: '.'),
-          ],
-        ),
-        textAlign: TextAlign.center,
       ),
     );
   }

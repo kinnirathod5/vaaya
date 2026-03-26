@@ -1528,7 +1528,7 @@ class _CelebrationOverlayState extends State<_CelebrationOverlay>
             // Confetti
             AnimatedBuilder(
               animation: _confettiCtrl,
-              builder: (_, __) => CustomPaint(
+              builder: (_, _) => CustomPaint(
                 size: MediaQuery.of(context).size,
                 painter: _ConfettiPainter(
                   particles: _particles,
