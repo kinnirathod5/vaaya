@@ -3,20 +3,31 @@ import 'package:flutter/services.dart';
 import '../../core/theme/app_theme.dart';
 
 // ============================================================
-// 📝 CUSTOM TEXT FIELD
-// Premium form input used across all screens.
-// Supports: prefix icon, suffix, validation, focus animation,
-//           character limit, input formatters, multiline.
+// 📝 CUSTOM TEXT FIELD — v2.0
+//
+// Fixes over v1:
+//   ✅ FIX 1 — clipBehavior: Clip.hardEdge on AnimatedContainer
+//              borderWidth 1.5→2 on focus causes visual "double
+//              border" + clip artifact in screenshot — fixed by
+//              keeping width CONSTANT at 1.5, only color changes
+//   ✅ FIX 2 — All 6 TextField borders → OutlineInputBorder(none)
+//              disabledBorder + focusedErrorBorder were missing
+//              Any unset border falls back to Flutter default
+//   ✅ FIX 3 — AnimatedBuilder builder: (_, _) → (_, __)
+//              Duplicate underscore param — Dart compile error
+//   ✅ FIX 4 — FocusNode listener stored as named _focusListener
+//              Anonymous lambda in initState can't be removed
+//              in dispose — memory leak
+//   ✅ FIX 5 — Controller listener stored as named _controllerListener
+//              Same memory leak fix as FocusNode
 //
 // Usage:
 //   CustomTextField(hintText: 'First name', controller: _ctrl)
-//
 //   CustomTextField(
 //     hintText: 'City',
 //     controller: _ctrl,
 //     prefixIcon: Icons.location_city_rounded,
 //   )
-//
 //   CustomTextField(
 //     hintText: 'Bio',
 //     controller: _ctrl,
@@ -24,6 +35,7 @@ import '../../core/theme/app_theme.dart';
 //     maxLength: 300,
 //   )
 // ============================================================
+
 class CustomTextField extends StatefulWidget {
   const CustomTextField({
     super.key,
@@ -94,39 +106,48 @@ class _CustomTextFieldState extends State<CustomTextField> {
 
   late final FocusNode _focusNode;
   late final TextEditingController _controller;
-  bool _isFocused = false;
+  bool    _isFocused = false;
   String? _errorText;
-  bool _hasText = false;
+  bool    _hasText   = false;
+
+  // ── FIX 4+5: Named listener references — required for dispose ─
+  late final VoidCallback _focusListener;
+  late final VoidCallback _controllerListener;
 
   @override
   void initState() {
     super.initState();
-    _focusNode = widget.focusNode ?? FocusNode();
+    _focusNode  = widget.focusNode  ?? FocusNode();
     _controller = widget.controller ?? TextEditingController();
 
-    _focusNode.addListener(() {
+    // ── FIX 4: Store as named callback ─────────────────────
+    _focusListener = () {
       final focused = _focusNode.hasFocus;
       if (focused != _isFocused) {
         setState(() => _isFocused = focused);
-        // Validate on blur
         if (!focused && widget.validator != null) {
           setState(() => _errorText = widget.validator!(_controller.text));
         }
       }
-    });
+    };
 
-    _controller.addListener(() {
+    // ── FIX 5: Store as named callback ─────────────────────
+    _controllerListener = () {
       final hasText = _controller.text.isNotEmpty;
       if (hasText != _hasText) setState(() => _hasText = hasText);
-      // Clear error when typing
       if (_errorText != null) setState(() => _errorText = null);
-    });
+    };
+
+    _focusNode.addListener(_focusListener);
+    _controller.addListener(_controllerListener);
   }
 
   @override
   void dispose() {
-    // Only dispose if we created them internally
-    if (widget.focusNode == null) _focusNode.dispose();
+    // ── FIX 4+5: Remove named listeners — no memory leak ───
+    _focusNode.removeListener(_focusListener);
+    _controller.removeListener(_controllerListener);
+    if (widget.focusNode  == null) _focusNode.dispose();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
@@ -134,14 +155,15 @@ class _CustomTextFieldState extends State<CustomTextField> {
   Color get _borderColor {
     if (_errorText != null) return AppTheme.error;
     if (_isFocused) return AppTheme.brandPrimary;
-    if (_hasText) return AppTheme.brandPrimary.withValues(alpha: 0.25);
+    if (_hasText)   return AppTheme.brandPrimary.withValues(alpha: 0.25);
     return Colors.grey.shade200;
   }
 
-  double get _borderWidth {
-    if (_isFocused || _errorText != null) return 2;
-    return 1.5;
-  }
+  // ── FIX 1: Constant width — no size jump on focus ─────────
+  // Changing 1.5→2 caused AnimatedContainer to physically expand,
+  // making the border look doubled and the field edge clip.
+  // Color change alone is enough to show focus state.
+  double get _borderWidth => 1.5;
 
   @override
   Widget build(BuildContext context) {
@@ -150,30 +172,32 @@ class _CustomTextFieldState extends State<CustomTextField> {
       mainAxisSize: MainAxisSize.min,
       children: [
 
-        // ── Input field ───────────────────────────────
+        // ── Input field ───────────────────────────────────
         AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
+          // ── FIX 1: Clip overflow from border / shadow ────
+          clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             color: widget.enabled ? Colors.white : Colors.grey.shade50,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: _borderColor,
-              width: _borderWidth,
+              width: _borderWidth, // constant 1.5 — no size jump
             ),
             boxShadow: _isFocused
                 ? [
               BoxShadow(
-                color: AppTheme.brandPrimary.withValues(alpha: 0.08),
+                color:      AppTheme.brandPrimary.withValues(alpha: 0.08),
                 blurRadius: 12,
-                offset: const Offset(0, 4),
+                offset:     const Offset(0, 4),
               ),
             ]
                 : AppTheme.softShadow,
           ),
           child: TextField(
             controller: _controller,
-            focusNode: _focusNode,
+            focusNode:  _focusNode,
             obscureText: widget.obscureText,
             keyboardType: widget.keyboardType,
             textCapitalization: widget.textCapitalization,
@@ -187,9 +211,9 @@ class _CustomTextFieldState extends State<CustomTextField> {
             onChanged: widget.onChanged,
             onSubmitted: widget.onSubmitted,
             style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+              fontFamily:  'Poppins',
+              fontSize:    14,
+              fontWeight:  FontWeight.w600,
               color: widget.enabled
                   ? AppTheme.brandDark
                   : Colors.grey.shade400,
@@ -198,26 +222,32 @@ class _CustomTextFieldState extends State<CustomTextField> {
             decoration: InputDecoration(
               hintText: widget.hintText,
               hintStyle: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-                color: Colors.grey.shade400,
+                fontFamily:  'Poppins',
+                fontSize:    14,
+                fontWeight:  FontWeight.w400,
+                color:       Colors.grey.shade400,
               ),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              errorBorder: InputBorder.none,
+              // ── FIX 2: All 6 borders explicitly none ──────
+              // Missing disabledBorder + focusedErrorBorder were
+              // falling back to Flutter's default UnderlineInputBorder
+              border:             const OutlineInputBorder(borderSide: BorderSide.none),
+              enabledBorder:      const OutlineInputBorder(borderSide: BorderSide.none),
+              focusedBorder:      const OutlineInputBorder(borderSide: BorderSide.none),
+              errorBorder:        const OutlineInputBorder(borderSide: BorderSide.none),
+              focusedErrorBorder: const OutlineInputBorder(borderSide: BorderSide.none),
+              disabledBorder:     const OutlineInputBorder(borderSide: BorderSide.none),
+              filled: false,
               contentPadding: EdgeInsets.symmetric(
                 horizontal: widget.prefixIcon != null ? 4 : 16,
-                vertical: widget.maxLines > 1 ? 14 : 16,
+                vertical:   widget.maxLines > 1 ? 14 : 16,
               ),
-              counterText: '', // Hide default counter
+              counterText: '',
               prefixIcon: widget.prefixIcon != null
                   ? Padding(
                 padding: const EdgeInsets.only(left: 14, right: 4),
                 child: Icon(
                   widget.prefixIcon,
-                  size: 18,
+                  size:  18,
                   color: _isFocused
                       ? AppTheme.brandPrimary
                       : Colors.grey.shade400,
@@ -235,7 +265,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
           ),
         ),
 
-        // ── Error text ────────────────────────────────
+        // ── Error text ────────────────────────────────────
         if (_errorText != null)
           Padding(
             padding: const EdgeInsets.only(top: 6, left: 4),
@@ -243,24 +273,24 @@ class _CustomTextFieldState extends State<CustomTextField> {
               children: [
                 const Icon(
                   Icons.error_outline_rounded,
-                  size: 13,
+                  size:  13,
                   color: AppTheme.error,
                 ),
                 const SizedBox(width: 5),
                 Text(
                   _errorText!,
                   style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.error,
+                    fontFamily:  'Poppins',
+                    fontSize:    11,
+                    fontWeight:  FontWeight.w500,
+                    color:       AppTheme.error,
                   ),
                 ),
               ],
             ),
           ),
 
-        // ── Character counter ─────────────────────────
+        // ── Character counter ─────────────────────────────
         if (widget.maxLength != null)
           Padding(
             padding: const EdgeInsets.only(top: 4, right: 4),
@@ -268,16 +298,17 @@ class _CustomTextFieldState extends State<CustomTextField> {
               alignment: Alignment.centerRight,
               child: AnimatedBuilder(
                 animation: _controller,
-                builder: (_, _) {
-                  final count = _controller.text.length;
-                  final limit = widget.maxLength!;
+                // ── FIX 3: was (_, _) — duplicate param ─────
+                builder: (_, __) {
+                  final count       = _controller.text.length;
+                  final limit       = widget.maxLength!;
                   final isNearLimit = count >= (limit * 0.85).round();
                   return Text(
                     '$count / $limit',
                     style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
+                      fontFamily:  'Poppins',
+                      fontSize:    10,
+                      fontWeight:  FontWeight.w500,
                       color: isNearLimit
                           ? AppTheme.warning
                           : Colors.grey.shade400,
@@ -293,10 +324,8 @@ class _CustomTextFieldState extends State<CustomTextField> {
 
   // ── Suffix widget ─────────────────────────────────────────
   Widget? _buildSuffix() {
-    // Custom suffix takes priority
     if (widget.suffixIcon != null) return widget.suffixIcon;
 
-    // Clear button
     if (widget.showClearButton && _hasText) {
       return GestureDetector(
         onTap: () {
@@ -307,7 +336,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
           padding: const EdgeInsets.all(12),
           child: Icon(
             Icons.cancel_rounded,
-            size: 18,
+            size:  18,
             color: Colors.grey.shade400,
           ),
         ),

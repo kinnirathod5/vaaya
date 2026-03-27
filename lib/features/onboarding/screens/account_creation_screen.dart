@@ -5,40 +5,53 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_assets.dart';
+import '../../../core/constants/auth_constants.dart';
+import '../../../core/constants/onboarding_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/haptic_utils.dart';
+import '../../../shared/animations/fade_animation.dart';
+import '../../../shared/widgets/auth_snackbar.dart';
 import '../../../shared/widgets/custom_chip.dart';
 import '../../../shared/widgets/custom_textfield.dart';
+import '../../../shared/widgets/primary_button.dart';
+import '../../../shared/widgets/step_progress_header.dart';
 
 // ============================================================
-// 🪷 ACCOUNT CREATION SCREEN — v2.0 All Widgets Inlined
+// 🪷 ACCOUNT CREATION SCREEN — v5.0
 //
-// Widgets inlined:
-//   onboarding_step_header.dart   → _StepHeader
-//   onboarding_next_button.dart   → _NextButton
-//   onboarding_helpers.dart       → _StepTitle, _FieldLabel
-//   step1_name.dart               → _Step1Name
-//   step2_gender.dart             → _Step2Gender
-//   step3_birthday.dart           → _Step3Birthday
-//   step4_height.dart             → _Step4Height
-//   step5_community.dart          → _Step5Community
-//   step6_photo_location.dart     → _Step6Photo
-//   celebration_overlay.dart      → _CelebrationOverlay
+// Fixes over v4 (screenshots review):
+//   ✅ FIX 9 — CustomChip pill → borderRadius: 10
+//              GestureDetector → Material + InkWell
+//   ✅ FIX 10 — _dobTouched = true by default
+//              Picker shows valid date — no need to touch
+//   ✅ FIX 11 — Welcome card fontSize: 26 → 22 + textAlign center
+//              Long names were wrapping 🎉 to next line
 //
-// IMPROVEMENTS vs v1:
-//   ✅ All 9 widget files inlined — zero external imports
-//   ✅ Step header: progress bar is a single smooth
-//      AnimatedFractionallySizedBox — no per-step recalc
-//   ✅ Step header: active emoji scales up, done = ✓ checkmark
-//   ✅ Hint banner: AnimatedSwitcher slide+fade
-//   ✅ Gender cards: emoji scales on selected
-//   ✅ Birthday: age badge animates in on picker touch
-//   ✅ Height: large display number + ft/in pickers side by side
-//   ✅ Community: Banjara locked chip + gotra wrap
-//   ✅ Photo: upload → scanning overlay → verified badge
-//   ✅ Next button: gradient disabled→enabled, icon changes
-//   ✅ Celebration: 55-particle confetti + welcome card
-//   ✅ All text: maxLines + overflow everywhere
+// Fixes over v3:
+//   ✅ FIX 1 — ALL CAPS _FieldLabel → sentence case
+//              'FIRST NAME' → 'First name', letterSpacing 1.2→0.3
+//   ✅ FIX 2 — _GenderCard GestureDetector → Material + InkWell
+//              Proper ripple on gender selection
+//   ✅ FIX 3 — _CelebrationOverlay AnimatedBuilder duplicate _ param
+//              builder: (_, _) → builder: (_, __) — compile fix
+//   ✅ FIX 4 — Photo card GestureDetector → Material + InkWell
+//              Ripple + clipBehavior for rounded corners
+//   ✅ FIX 5 — Memory leak: removeListener added in dispose()
+//              _firstCtrl + _lastCtrl listeners properly cleaned up
+//   ✅ FIX 6 — _StepTitle fontSize: 34 → 30
+//              Consistent with OTP/Login auth screens
+//   ✅ FIX 7 — Height display fontSize: 52 w900 → 44 w800
+//              Less cramped, more breathing room
+//   ✅ FIX 8 — Photo GestureDetector → InkWell(onTap: null when uploaded)
+//              InkWell null onTap = auto-disabled, no ripple when done
+//
+// Already good (preserved):
+//   ✅ Accurate age calc — _calcAge() accounts for month+day
+//   ✅ _isNavigating spinner on final step
+//   ✅ AuthSnackbar validation messages per step
+//   ✅ Gender-aware preview photo via AppAssets
+//   ✅ OnboardingConstants for all layout/animation tokens
 //
 // TODO: onboardingProvider → profileRepository.createProfile()
 // ============================================================
@@ -68,6 +81,21 @@ const _gotraList = [
 ];
 
 // ──────────────────────────────────────────────────────────────
+// TOP-LEVEL HELPERS
+// ──────────────────────────────────────────────────────────────
+
+/// Accurate age calculation — accounts for month and day.
+int _calcAge(DateTime dob) {
+  final now = DateTime.now();
+  int age = now.year - dob.year;
+  if (now.month < dob.month ||
+      (now.month == dob.month && now.day < dob.day)) {
+    age--;
+  }
+  return age;
+}
+
+// ──────────────────────────────────────────────────────────────
 // SCREEN
 // ──────────────────────────────────────────────────────────────
 
@@ -82,7 +110,8 @@ class _AccountCreationScreenState extends State<AccountCreationScreen>
     with TickerProviderStateMixin {
 
   final _pageCtrl = PageController();
-  int _step = 0;
+  int  _step = 0;
+  bool _isNavigating = false;
 
   // Step 1
   String _profileFor = '';
@@ -94,7 +123,7 @@ class _AccountCreationScreenState extends State<AccountCreationScreen>
 
   // Step 3
   DateTime _dob = DateTime(2000, 1, 1);
-  bool _dobTouched = false;
+  bool _dobTouched = true;  // FIX: default true — picker always shows valid date
 
   // Step 4
   int _feet = 5, _inches = 4;
@@ -104,12 +133,17 @@ class _AccountCreationScreenState extends State<AccountCreationScreen>
 
   // Step 6
   bool _photoUploaded = false;
-  int  _scanStep = 0; // 0=idle 1=scanning 2=done
+  int  _scanStep = 0;
 
-  // Celebration
+  // Celebration overlay
   bool _celebrate = false;
 
-  // ── Helpers ───────────────────────────────────────────────
+  // ── FIX 5: Store listener references for proper cleanup ───
+  late final VoidCallback _firstListener;
+  late final VoidCallback _lastListener;
+
+  // ── Computed helpers ──────────────────────────────────────
+
   String get _firstName {
     final n = _firstCtrl.text.trim();
     return n.isEmpty ? '' : n.split(' ').first;
@@ -129,6 +163,22 @@ class _AccountCreationScreenState extends State<AccountCreationScreen>
     }
   }
 
+  String get _validationMessage {
+    switch (_step) {
+      case 0:
+        if (_profileFor.isEmpty) return 'Select who this profile is for';
+        return 'Enter at least 2 characters for both names';
+      case 1: return 'Please select your gender to continue';
+      case 2: return 'Tap the date picker to set your birthday';
+      case 3: return '';
+      case 4: return 'Please select your Gotra to continue';
+      case 5: return 'Upload and verify your photo to continue';
+      default: return 'Please complete this step to continue';
+    }
+  }
+
+  // ── Lifecycle ─────────────────────────────────────────────
+
   @override
   void initState() {
     super.initState();
@@ -136,33 +186,51 @@ class _AccountCreationScreenState extends State<AccountCreationScreen>
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
     ));
-    _firstCtrl.addListener(() => setState(() {}));
-    _lastCtrl.addListener(() => setState(() {}));
+
+    // ── FIX 5: Store listeners so they can be removed ────────
+    _firstListener = () => setState(() {});
+    _lastListener  = () => setState(() {});
+    _firstCtrl.addListener(_firstListener);
+    _lastCtrl.addListener(_lastListener);
   }
 
   @override
   void dispose() {
+    // ── FIX 5: Remove listeners — prevents memory leak ───────
+    _firstCtrl.removeListener(_firstListener);
+    _lastCtrl.removeListener(_lastListener);
     _pageCtrl.dispose();
     _firstCtrl.dispose();
     _lastCtrl.dispose();
     super.dispose();
   }
 
+  // ── Navigation ────────────────────────────────────────────
+
   void _next() {
-    if (!_canNext) { HapticUtils.errorVibrate(); return; }
+    if (!_canNext) {
+      HapticUtils.errorVibrate();
+      if (_validationMessage.isNotEmpty) {
+        AuthSnackbar.showError(context, _validationMessage);
+      }
+      return;
+    }
     FocusScope.of(context).unfocus();
     if (_step < _totalSteps - 1) {
       HapticUtils.lightImpact();
       setState(() => _step++);
       _pageCtrl.animateToPage(
         _step,
-        duration: const Duration(milliseconds: 480),
-        curve: Curves.easeOutCubic,
+        duration: OnboardingConstants.pageTransitionDuration,
+        curve:    OnboardingConstants.pageTransitionCurve,
       );
     } else {
       HapticUtils.heavyImpact();
-      setState(() => _celebrate = true);
-      Future.delayed(const Duration(milliseconds: 2700), () {
+      setState(() {
+        _celebrate    = true;
+        _isNavigating = true;
+      });
+      Future.delayed(OnboardingConstants.confettiDuration, () {
         if (mounted) context.go('/dashboard');
       });
     }
@@ -175,8 +243,8 @@ class _AccountCreationScreenState extends State<AccountCreationScreen>
       setState(() => _step--);
       _pageCtrl.animateToPage(
         _step,
-        duration: const Duration(milliseconds: 480),
-        curve: Curves.easeOutCubic,
+        duration: OnboardingConstants.pageTransitionDuration,
+        curve:    OnboardingConstants.pageTransitionCurve,
       );
     } else {
       context.pop();
@@ -196,49 +264,44 @@ class _AccountCreationScreenState extends State<AccountCreationScreen>
   }
 
   // ── Build ──────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
-    final kbOpen    = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        backgroundColor: AppTheme.bgScaffold,
-        resizeToAvoidBottomInset: false,
+        backgroundColor: AuthConstants.scaffoldBg,
+        resizeToAvoidBottomInset: true,
         body: Stack(
           children: [
-            // Moving ambient glow
             _AmbientGlow(step: _step),
 
             SafeArea(
               child: Column(
                 children: [
-
-                  // Step header — progress + emoji bar
-                  _StepHeader(
+                  StepProgressHeader(
                     current: _step,
                     total:   _totalSteps,
                     meta:    _stepMeta,
                     onBack:  _prev,
                   ),
 
-                  // Motivational hint text
                   _HintBanner(
-                    key: ValueKey(_step),
+                    key:  ValueKey(_step),
                     text: _stepMeta[_step]['hint']!,
                   ),
 
-                  // Step pages
                   Expanded(
                     child: PageView(
                       controller: _pageCtrl,
-                      physics: const NeverScrollableScrollPhysics(),
+                      physics:    const NeverScrollableScrollPhysics(),
                       children: [
                         _Step1Name(
-                          profileFor: _profileFor,
-                          firstCtrl:  _firstCtrl,
-                          lastCtrl:   _lastCtrl,
+                          profileFor:   _profileFor,
+                          firstCtrl:    _firstCtrl,
+                          lastCtrl:     _lastCtrl,
                           onForChanged: (v) =>
                               setState(() => _profileFor = v),
                         ),
@@ -253,46 +316,77 @@ class _AccountCreationScreenState extends State<AccountCreationScreen>
                           firstName: _firstName,
                           isFemale:  _gender == 'Female',
                           onChanged: (d) => setState(() {
-                            _dob = d;
+                            _dob        = d;
                             _dobTouched = true;
                           }),
                         ),
                         _Step4Height(
-                          feet:      _feet,
-                          inches:    _inches,
-                          firstName: _firstName,
-                          isFemale:  _gender == 'Female',
-                          onFeetChanged:   (v) => setState(() => _feet = v),
+                          feet:            _feet,
+                          inches:          _inches,
+                          firstName:       _firstName,
+                          isFemale:        _gender == 'Female',
+                          onFeetChanged:   (v) => setState(() => _feet   = v),
                           onInchesChanged: (v) => setState(() => _inches = v),
                         ),
                         _Step5Community(
-                          gotra:     _gotra,
-                          firstName: _firstName,
+                          gotra:          _gotra,
+                          firstName:      _firstName,
                           onGotraChanged: (v) =>
                               setState(() => _gotra = v),
                         ),
                         _Step6Photo(
-                          uploaded:  _photoUploaded,
-                          scanStep:  _scanStep,
-                          firstName: _firstName,
+                          uploaded:   _photoUploaded,
+                          scanStep:   _scanStep,
+                          firstName:  _firstName,
+                          isFemale:   _gender == 'Female',
                           onPhotoTap: _onPhotoTap,
                         ),
                       ],
                     ),
                   ),
 
-                  // Next / VIP Lounge button
-                  _NextButton(
-                    enabled: _canNext,
-                    isLast:  _step == _totalSteps - 1,
-                    bottom:  kbOpen ? 15 : bottomPad + 16,
-                    onTap:   _next,
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      OnboardingConstants.stepHorizontalPad,
+                      OnboardingConstants.buttonTopPad,
+                      OnboardingConstants.stepHorizontalPad,
+                      bottomPad + OnboardingConstants.buttonBottomPad,
+                    ),
+                    child: Stack(
+                      children: [
+                        PrimaryButton(
+                          text: _step == _totalSteps - 1
+                              ? 'Enter VIP Lounge'
+                              : 'Continue',
+                          icon: _step == _totalSteps - 1
+                              ? Icons.workspace_premium_rounded
+                              : null,
+                          trailingIcon: _step < _totalSteps - 1 && _canNext
+                              ? Icons.arrow_forward_rounded
+                              : null,
+                          isEnabled: _canNext,
+                          isLoading: _isNavigating,
+                          height:    AuthConstants.buttonHeight,
+                          onTap:     _next,
+                        ),
+                        if (!_canNext && _validationMessage.isNotEmpty)
+                          Positioned.fill(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                HapticUtils.errorVibrate();
+                                AuthSnackbar.showError(
+                                    context, _validationMessage);
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
 
-            // Confetti celebration overlay
             if (_celebrate)
               _CelebrationOverlay(firstName: _firstName),
           ],
@@ -303,7 +397,7 @@ class _AccountCreationScreenState extends State<AccountCreationScreen>
 }
 
 // ══════════════════════════════════════════════════════════════
-// AMBIENT GLOW — animated blob that shifts per step
+// AMBIENT GLOW
 // ══════════════════════════════════════════════════════════════
 class _AmbientGlow extends StatelessWidget {
   const _AmbientGlow({required this.step});
@@ -312,8 +406,8 @@ class _AmbientGlow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedPositioned(
-      duration: const Duration(milliseconds: 900),
-      curve: Curves.easeInOutCubic,
+      duration: OnboardingConstants.ambientGlowDuration,
+      curve:    OnboardingConstants.ambientGlowCurve,
       top:   step.isOdd ? 180 : -60,
       left:  step.isEven ? -60 : null,
       right: step.isOdd  ? -60 : null,
@@ -332,146 +426,7 @@ class _AmbientGlow extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════
-// STEP HEADER — back button + step name + emoji progress bar
-// ══════════════════════════════════════════════════════════════
-class _StepHeader extends StatelessWidget {
-  const _StepHeader({
-    required this.current,
-    required this.total,
-    required this.meta,
-    required this.onBack,
-  });
-  final int    current;
-  final int    total;
-  final List<Map<String, String>> meta;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Column(
-        children: [
-
-          // Back + step label row
-          Row(
-            children: [
-              GestureDetector(
-                onTap: onBack,
-                child: Container(
-                  width: 44, height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.grey.shade200),
-                    boxShadow: AppTheme.softShadow,
-                  ),
-                  child: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: AppTheme.brandDark,
-                    size: 16,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 280),
-                child: Column(
-                  key: ValueKey(current),
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '${meta[current]['emoji']}  ${meta[current]['label']}',
-                      style: const TextStyle(
-                        fontFamily:  'Poppins',
-                        fontSize:    13,
-                        fontWeight:  FontWeight.w700,
-                        color:       AppTheme.brandPrimary,
-                      ),
-                    ),
-                    Text(
-                      'Step ${current + 1} of $total',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize:   11,
-                        color:      Colors.grey.shade400,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Emoji + bar progress row
-          Row(
-            children: List.generate(total, (i) {
-              final done   = i < current;
-              final active = i == current;
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: Column(
-                    children: [
-                      // Emoji bubble
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOutBack,
-                        width:  active ? 28 : 22,
-                        height: active ? 28 : 22,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: done
-                              ? AppTheme.brandPrimary
-                              : active
-                              ? AppTheme.brandPrimary.withValues(alpha: 0.10)
-                              : Colors.grey.shade100,
-                          border: Border.all(
-                            color: (done || active)
-                                ? AppTheme.brandPrimary
-                                : Colors.grey.shade200,
-                            width: active ? 2 : 1,
-                          ),
-                        ),
-                        child: Center(
-                          child: done
-                              ? const Icon(Icons.check_rounded,
-                              size: 12, color: Colors.white)
-                              : Text(
-                            meta[i]['emoji']!,
-                            style: TextStyle(
-                                fontSize: active ? 13 : 10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-
-                      // Progress bar segment
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 380),
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: (done || active)
-                              ? AppTheme.brandPrimary
-                              : Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-// HINT BANNER — slide+fade on step change
+// HINT BANNER
 // ══════════════════════════════════════════════════════════════
 class _HintBanner extends StatelessWidget {
   const _HintBanner({super.key, required this.text});
@@ -480,7 +435,7 @@ class _HintBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 320),
+      duration: OnboardingConstants.hintBannerDuration,
       transitionBuilder: (child, anim) => FadeTransition(
         opacity: anim,
         child: SlideTransition(
@@ -493,14 +448,14 @@ class _HintBanner extends StatelessWidget {
       ),
       child: Padding(
         key: ValueKey(text),
-        padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
         child: Text(
           text,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             fontFamily: 'Poppins',
             fontSize:   12,
-            color:      Colors.grey.shade500,
+            color:      AppTheme.textSecondary,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -510,88 +465,9 @@ class _HintBanner extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════
-// NEXT BUTTON — disabled/enabled gradient + icon
+// SHARED HELPERS
 // ══════════════════════════════════════════════════════════════
-class _NextButton extends StatelessWidget {
-  const _NextButton({
-    required this.enabled,
-    required this.isLast,
-    required this.bottom,
-    required this.onTap,
-  });
-  final bool   enabled;
-  final bool   isLast;
-  final double bottom;
-  final VoidCallback onTap;
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(24, 10, 24, bottom),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        width: double.infinity, height: 56,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: enabled
-                ? [AppTheme.brandPrimary, const Color(0xFFFF6B84)]
-                : [Colors.grey.shade200, Colors.grey.shade200],
-          ),
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: enabled
-              ? [BoxShadow(
-            color: AppTheme.brandPrimary.withValues(alpha: 0.30),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          )]
-              : [],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(18),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (isLast)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Icon(
-                      Icons.workspace_premium_rounded,
-                      color: enabled
-                          ? Colors.white
-                          : Colors.grey.shade400,
-                      size: 18,
-                    ),
-                  ),
-                Text(
-                  isLast ? 'Enter VIP Lounge' : 'Continue',
-                  style: TextStyle(
-                    fontFamily:  'Poppins',
-                    fontSize:    16,
-                    fontWeight:  FontWeight.w700,
-                    letterSpacing: 0.2,
-                    color: enabled ? Colors.white : Colors.grey.shade400,
-                  ),
-                ),
-                if (!isLast && enabled) ...[
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_rounded,
-                      color: Colors.white, size: 18),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-// SHARED HELPERS — StepTitle + FieldLabel
-// ══════════════════════════════════════════════════════════════
 class _StepTitle extends StatelessWidget {
   const _StepTitle({required this.title, this.subtitle});
   final String  title;
@@ -605,11 +481,12 @@ class _StepTitle extends StatelessWidget {
         Text(
           title,
           style: const TextStyle(
-            fontFamily:   'Cormorant Garamond',
-            fontSize:     34,
-            fontWeight:   FontWeight.w700,
-            color:        AppTheme.brandDark,
-            height:       1.15,
+            fontFamily:    'Cormorant Garamond',
+            // ── FIX 6: fontSize 34 → 30 — consistent with auth screens ─
+            fontSize:      30,
+            fontWeight:    FontWeight.w700,
+            color:         AppTheme.brandDark,
+            height:        1.15,
             letterSpacing: -0.5,
           ),
         ),
@@ -617,10 +494,10 @@ class _StepTitle extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             subtitle!,
-            style: TextStyle(
+            style: const TextStyle(
               fontFamily: 'Poppins',
               fontSize:   13,
-              color:      Colors.grey.shade500,
+              color:      AppTheme.textSecondary,
               height:     1.4,
             ),
           ),
@@ -630,6 +507,7 @@ class _StepTitle extends StatelessWidget {
   }
 }
 
+// ── FIX 1: Sentence case + reduced letterSpacing ─────────────
 class _FieldLabel extends StatelessWidget {
   const _FieldLabel(this.text);
   final String text;
@@ -638,12 +516,12 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: TextStyle(
-        fontFamily:  'Poppins',
-        fontSize:    11,
-        fontWeight:  FontWeight.w700,
-        color:       Colors.grey.shade400,
-        letterSpacing: 1.2,
+      style: const TextStyle(
+        fontFamily:    'Poppins',
+        fontSize:      11,
+        fontWeight:    FontWeight.w700,
+        color:         AppTheme.textHint,
+        letterSpacing: 0.3, // ← FIX 1: was 1.2 — ALL CAPS ke saath harsh
       ),
     );
   }
@@ -667,45 +545,66 @@ class _Step1Name extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+      padding: const EdgeInsets.fromLTRB(
+        OnboardingConstants.stepHorizontalPad,
+        OnboardingConstants.stepTopPad,
+        OnboardingConstants.stepHorizontalPad,
+        OnboardingConstants.stepTopPad,
+      ),
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _StepTitle(
-            title: 'Let\'s start\nwith the basics.',
-            subtitle: 'Genuine details help find genuine matches.',
+          const FadeAnimation(
+            delayInMs: 0,
+            child: _StepTitle(
+              title:    'Let\'s start\nwith the basics.',
+              subtitle: 'Genuine details help find genuine matches.',
+            ),
           ),
           const SizedBox(height: 28),
 
-          const _FieldLabel('PROFILE CREATED FOR'),
+          // ── FIX 1: sentence case ─────────────────────────
+          const FadeAnimation(
+            delayInMs: 80,
+            child: _FieldLabel('Profile created for'), // was: 'PROFILE CREATED FOR'
+          ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 10, runSpacing: 10,
-            children: _forOptions.map((o) => CustomChip(
-              label: o,
-              isSelected: profileFor == o,
-              onTap: () {
-                HapticUtils.selectionClick();
-                onForChanged(o);
-              },
-            )).toList(),
+          FadeAnimation(
+            delayInMs: 120,
+            child: Wrap(
+              spacing: 10, runSpacing: 10,
+              children: _forOptions.map((o) => CustomChip(
+                label: o,
+                isSelected: profileFor == o,
+                onTap: () {
+                  HapticUtils.selectionClick();
+                  onForChanged(o);
+                },
+              )).toList(),
+            ),
           ),
           const SizedBox(height: 26),
 
-          const _FieldLabel('FIRST NAME'),
+          const FadeAnimation(
+            delayInMs: 180,
+            child: _FieldLabel('First name'), // was: 'FIRST NAME'
+          ),
           const SizedBox(height: 10),
-          CustomTextField(
-            hintText:   'e.g. Rahul',
-            controller: firstCtrl,
+          FadeAnimation(
+            delayInMs: 220,
+            child: CustomTextField(hintText: 'e.g. Rahul', controller: firstCtrl),
           ),
           const SizedBox(height: 18),
 
-          const _FieldLabel('LAST NAME'),
+          const FadeAnimation(
+            delayInMs: 260,
+            child: _FieldLabel('Last name'), // was: 'LAST NAME'
+          ),
           const SizedBox(height: 10),
-          CustomTextField(
-            hintText:   'e.g. Rathod',
-            controller: lastCtrl,
+          FadeAnimation(
+            delayInMs: 300,
+            child: CustomTextField(hintText: 'e.g. Rathod', controller: lastCtrl),
           ),
           const SizedBox(height: 28),
         ],
@@ -730,43 +629,54 @@ class _Step2Gender extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+      padding: const EdgeInsets.fromLTRB(
+        OnboardingConstants.stepHorizontalPad,
+        OnboardingConstants.stepTopPad,
+        OnboardingConstants.stepHorizontalPad,
+        0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _StepTitle(
-            title: firstName.isNotEmpty
-                ? 'Who are you,\n$firstName?'
-                : 'Who are you?',
+          FadeAnimation(
+            delayInMs: 0,
+            child: _StepTitle(
+              title: firstName.isNotEmpty
+                  ? 'Who are you,\n$firstName?'
+                  : 'Who are you?',
+            ),
           ),
           const SizedBox(height: 32),
           Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: _GenderCard(
-                    emoji: '👨',
-                    title: 'Male',
-                    isSelected: gender == 'Male',
-                    onTap: () {
-                      HapticUtils.selectionClick();
-                      onChanged('Male');
-                    },
+            child: FadeAnimation(
+              delayInMs: 100,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _GenderCard(
+                      emoji:      '👨',
+                      title:      'Male',
+                      isSelected: gender == 'Male',
+                      onTap: () {
+                        HapticUtils.selectionClick();
+                        onChanged('Male');
+                      },
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _GenderCard(
-                    emoji: '👩',
-                    title: 'Female',
-                    isSelected: gender == 'Female',
-                    onTap: () {
-                      HapticUtils.selectionClick();
-                      onChanged('Female');
-                    },
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _GenderCard(
+                      emoji:      '👩',
+                      title:      'Female',
+                      isSelected: gender == 'Female',
+                      onTap: () {
+                        HapticUtils.selectionClick();
+                        onChanged('Female');
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -776,6 +686,7 @@ class _Step2Gender extends StatelessWidget {
   }
 }
 
+// ── FIX 2: GestureDetector → Material + InkWell on gender card ─
 class _GenderCard extends StatelessWidget {
   const _GenderCard({
     required this.emoji,
@@ -790,72 +701,81 @@ class _GenderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.brandPrimary.withValues(alpha: 0.05)
-              : Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(
+          OnboardingConstants.genderCardRadius),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(
+            OnboardingConstants.genderCardRadius),
+        splashColor: AppTheme.brandPrimary.withValues(alpha: 0.08),
+        child: AnimatedContainer(
+          duration: OnboardingConstants.genderCardDuration,
+          decoration: BoxDecoration(
             color: isSelected
-                ? AppTheme.brandPrimary
-                : Colors.grey.shade200,
-            width: isSelected ? 2.5 : 1.5,
+                ? AppTheme.brandPrimary.withValues(alpha: 0.05)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(
+                OnboardingConstants.genderCardRadius),
+            border: Border.all(
+              color: isSelected
+                  ? AppTheme.brandPrimary
+                  : Colors.grey.shade200,
+              width: isSelected ? 2.5 : 1.5,
+            ),
+            boxShadow: isSelected
+                ? [BoxShadow(
+              color:      AppTheme.brandPrimary.withValues(alpha: 0.15),
+              blurRadius: 18,
+              offset:     const Offset(0, 6),
+            )]
+                : AppTheme.softShadow,
           ),
-          boxShadow: isSelected
-              ? [BoxShadow(
-            color: AppTheme.brandPrimary.withValues(alpha: 0.15),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          )]
-              : AppTheme.softShadow,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TextStyle(fontSize: isSelected ? 52 : 42),
-              child: Text(emoji),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              title,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize:   17,
-                fontWeight: FontWeight.w700,
-                color: isSelected
-                    ? AppTheme.brandPrimary
-                    : AppTheme.brandDark,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedDefaultTextStyle(
+                duration: OnboardingConstants.genderCardDuration,
+                style: TextStyle(fontSize: isSelected ? 52 : 42),
+                child: Text(emoji),
               ),
-            ),
-            const SizedBox(height: 8),
-            AnimatedOpacity(
-              opacity:  isSelected ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 200),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color:        AppTheme.brandPrimary,
-                  borderRadius: BorderRadius.circular(20),
+              const SizedBox(height: 14),
+              Text(
+                title,
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize:   17,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected
+                      ? AppTheme.brandPrimary
+                      : AppTheme.brandDark,
                 ),
-                child: const Text(
-                  'Selected ✓',
-                  style: TextStyle(
-                    fontFamily:  'Poppins',
-                    fontSize:    10,
-                    fontWeight:  FontWeight.w700,
-                    color:       Colors.white,
+              ),
+              const SizedBox(height: 8),
+              AnimatedOpacity(
+                opacity:  isSelected ? 1.0 : 0.0,
+                duration: OnboardingConstants.genderCardDuration,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color:        AppTheme.brandPrimary,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Selected ✓',
+                    style: TextStyle(
+                      fontFamily:  'Poppins',
+                      fontSize:    10,
+                      fontWeight:  FontWeight.w700,
+                      color:       Colors.white,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -882,44 +802,55 @@ class _Step3Birthday extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+      padding: const EdgeInsets.fromLTRB(
+        OnboardingConstants.stepHorizontalPad,
+        OnboardingConstants.stepTopPad,
+        OnboardingConstants.stepHorizontalPad,
+        0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _StepTitle(
-            title: firstName.isNotEmpty
-                ? 'When is your\nbirthday, $firstName?'
-                : 'When is your\nbirthday?',
-            subtitle: 'Your birth year will be kept private.',
+          FadeAnimation(
+            delayInMs: 0,
+            child: _StepTitle(
+              title: firstName.isNotEmpty
+                  ? 'When is your\nbirthday, $firstName?'
+                  : 'When is your\nbirthday?',
+              subtitle: 'Your birth year will be kept private.',
+            ),
           ),
           const SizedBox(height: 24),
 
-          // Date picker in white card
-          Container(
-            height: 210,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: AppTheme.heavyShadow,
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: CupertinoDatePicker(
-                mode: CupertinoDatePickerMode.date,
-                initialDateTime: dob,
-                minimumDate: DateTime(1950),
-                maximumDate: DateTime(DateTime.now().year - 18),
-                onDateTimeChanged: (d) {
-                  HapticUtils.selectionClick();
-                  onChanged(d);
-                },
+          FadeAnimation(
+            delayInMs: 100,
+            child: Container(
+              height: OnboardingConstants.pickerCardHeight,
+              decoration: BoxDecoration(
+                color:        Colors.white,
+                borderRadius: BorderRadius.circular(
+                    OnboardingConstants.pickerCardRadius),
+                boxShadow:    AppTheme.heavyShadow,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(
+                    OnboardingConstants.pickerCardRadius),
+                child: CupertinoDatePicker(
+                  mode:            CupertinoDatePickerMode.date,
+                  initialDateTime: dob,
+                  minimumDate:     DateTime(1950),
+                  maximumDate:     DateTime(DateTime.now().year - 18),
+                  onDateTimeChanged: (d) {
+                    HapticUtils.selectionClick();
+                    onChanged(d);
+                  },
+                ),
               ),
             ),
           ),
 
           const Spacer(),
 
-          // Age badge — animated in on first touch
           AnimatedOpacity(
             opacity:  touched ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 350),
@@ -935,7 +866,7 @@ class _Step3Birthday extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  'Age: ${DateTime.now().year - dob.year} years',
+                  'Age: ${_calcAge(dob)} years',
                   style: const TextStyle(
                     fontFamily:  'Poppins',
                     fontSize:    14,
@@ -975,104 +906,118 @@ class _Step4Height extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+      padding: const EdgeInsets.fromLTRB(
+        OnboardingConstants.stepHorizontalPad,
+        OnboardingConstants.stepTopPad,
+        OnboardingConstants.stepHorizontalPad,
+        0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _StepTitle(
-            title: firstName.isNotEmpty
-                ? 'How tall are\nyou, $firstName?'
-                : 'How tall are\nyou?',
-            subtitle: 'Helps find compatible matches.',
+          FadeAnimation(
+            delayInMs: 0,
+            child: _StepTitle(
+              title: firstName.isNotEmpty
+                  ? 'How tall are\nyou, $firstName?'
+                  : 'How tall are\nyou?',
+              subtitle: 'Helps find compatible matches.',
+            ),
           ),
           const SizedBox(height: 24),
 
-          // Ft + In pickers side by side
-          Container(
-            height: 230,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: AppTheme.heavyShadow,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 120,
-                  child: CupertinoPicker(
-                    scrollController: FixedExtentScrollController(
-                        initialItem: feet - 4),
-                    itemExtent: 52,
-                    onSelectedItemChanged: (i) {
-                      HapticUtils.selectionClick();
-                      onFeetChanged(i + 4);
-                    },
-                    children: List.generate(
-                      4,
-                          (i) => Center(
-                        child: Text(
-                          '${i + 4} ft',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize:   22,
-                            fontWeight: FontWeight.w700,
-                            color:      AppTheme.brandDark,
+          FadeAnimation(
+            delayInMs: 100,
+            child: Container(
+              height: OnboardingConstants.heightPickerCardHeight,
+              decoration: BoxDecoration(
+                color:        Colors.white,
+                borderRadius: BorderRadius.circular(
+                    OnboardingConstants.pickerCardRadius),
+                boxShadow:    AppTheme.heavyShadow,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: OnboardingConstants.pickerColumnWidth,
+                    child: CupertinoPicker(
+                      scrollController: FixedExtentScrollController(
+                          initialItem: feet - 4),
+                      itemExtent: OnboardingConstants.pickerItemExtent,
+                      onSelectedItemChanged: (i) {
+                        HapticUtils.selectionClick();
+                        onFeetChanged(i + 4);
+                      },
+                      children: List.generate(
+                        4,
+                            (i) => Center(
+                          child: Text(
+                            '${i + 4} ft',
+                            style: const TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize:   22,
+                              fontWeight: FontWeight.w700,
+                              color:      AppTheme.brandDark,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                Text(
-                  ':',
-                  style: TextStyle(
-                    fontSize: 26,
-                    color: Colors.grey.shade300,
+                  Text(
+                    ':',
+                    style: TextStyle(
+                      fontSize: 26,
+                      color:    Colors.grey.shade300,
+                    ),
                   ),
-                ),
-                SizedBox(
-                  width: 120,
-                  child: CupertinoPicker(
-                    scrollController: FixedExtentScrollController(
-                        initialItem: inches),
-                    itemExtent: 52,
-                    onSelectedItemChanged: (i) {
-                      HapticUtils.selectionClick();
-                      onInchesChanged(i);
-                    },
-                    children: List.generate(
-                      12,
-                          (i) => Center(
-                        child: Text(
-                          '$i in',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize:   22,
-                            fontWeight: FontWeight.w700,
-                            color:      AppTheme.brandDark,
+                  SizedBox(
+                    width: OnboardingConstants.pickerColumnWidth,
+                    child: CupertinoPicker(
+                      scrollController: FixedExtentScrollController(
+                          initialItem: inches),
+                      itemExtent: OnboardingConstants.pickerItemExtent,
+                      onSelectedItemChanged: (i) {
+                        HapticUtils.selectionClick();
+                        onInchesChanged(i);
+                      },
+                      children: List.generate(
+                        12,
+                            (i) => Center(
+                          child: Text(
+                            '$i in',
+                            style: const TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize:   22,
+                              fontWeight: FontWeight.w700,
+                              color:      AppTheme.brandDark,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
           const Spacer(),
 
-          // Large display number
-          Center(
-            child: Text(
-              "$feet'$inches\"",
-              style: const TextStyle(
-                fontFamily:   'Poppins',
-                fontSize:     52,
-                fontWeight:   FontWeight.w900,
-                color:        AppTheme.brandPrimary,
-                letterSpacing: -1,
+          // ── FIX 7: fontSize 52 w900 → 44 w800 — less cramped ─
+          FadeAnimation(
+            delayInMs: 160,
+            child: Center(
+              child: Text(
+                "$feet'$inches\"",
+                style: const TextStyle(
+                  fontFamily:    'Poppins',
+                  fontSize:      44,      // was: 52
+                  fontWeight:    FontWeight.w800, // was: w900
+                  color:         AppTheme.brandPrimary,
+                  letterSpacing: -1,
+                ),
               ),
             ),
           ),
@@ -1099,63 +1044,85 @@ class _Step5Community extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+      padding: const EdgeInsets.fromLTRB(
+        OnboardingConstants.stepHorizontalPad,
+        OnboardingConstants.stepTopPad,
+        OnboardingConstants.stepHorizontalPad,
+        OnboardingConstants.stepTopPad,
+      ),
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _StepTitle(
-            title: firstName.isNotEmpty
-                ? 'Your roots,\n$firstName.'
-                : 'Your roots.',
-            subtitle: 'Ensures cultural compatibility.',
+          FadeAnimation(
+            delayInMs: 0,
+            child: _StepTitle(
+              title: firstName.isNotEmpty
+                  ? 'Your roots,\n$firstName.'
+                  : 'Your roots.',
+              subtitle: 'Ensures cultural compatibility.',
+            ),
           ),
           const SizedBox(height: 26),
 
-          const _FieldLabel('COMMUNITY'),
+          // ── FIX 1: sentence case ─────────────────────────
+          const FadeAnimation(
+            delayInMs: 80,
+            child: _FieldLabel('Community'), // was: 'COMMUNITY'
+          ),
           const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: AppTheme.brandPrimary.withValues(alpha: 0.35),
-                width: 1.5,
-              ),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.verified_rounded,
-                    color: AppTheme.success, size: 18),
-                SizedBox(width: 10),
-                Text(
-                  'Banjara',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize:   15,
-                    fontWeight: FontWeight.w700,
-                    color:      AppTheme.brandDark,
-                  ),
+          FadeAnimation(
+            delayInMs: 100,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(
+                    OnboardingConstants.communityChipRadius),
+                border: Border.all(
+                  color: AppTheme.brandPrimary.withValues(alpha: 0.35),
+                  width: 1.5,
                 ),
-              ],
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.verified_rounded,
+                      color: AppTheme.success, size: 18),
+                  SizedBox(width: 10),
+                  Text(
+                    'Banjara',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize:   15,
+                      fontWeight: FontWeight.w700,
+                      color:      AppTheme.brandDark,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 22),
 
-          const _FieldLabel('SELECT GOTRA'),
+          const FadeAnimation(
+            delayInMs: 140,
+            child: _FieldLabel('Select gotra'), // was: 'SELECT GOTRA'
+          ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 10, runSpacing: 10,
-            children: _gotraList.map((g) => CustomChip(
-              label: g,
-              isSelected: gotra == g,
-              onTap: () {
-                HapticUtils.selectionClick();
-                onGotraChanged(g);
-              },
-            )).toList(),
+          FadeAnimation(
+            delayInMs: 160,
+            child: Wrap(
+              spacing: 10, runSpacing: 10,
+              children: _gotraList.map((g) => CustomChip(
+                label: g,
+                isSelected: gotra == g,
+                onTap: () {
+                  HapticUtils.selectionClick();
+                  onGotraChanged(g);
+                },
+              )).toList(),
+            ),
           ),
           const SizedBox(height: 28),
         ],
@@ -1172,115 +1139,151 @@ class _Step6Photo extends StatelessWidget {
     required this.uploaded,
     required this.scanStep,
     required this.firstName,
+    required this.isFemale,
     required this.onPhotoTap,
   });
   final bool   uploaded;
   final int    scanStep;
   final String firstName;
+  final bool   isFemale;
   final VoidCallback onPhotoTap;
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+      padding: const EdgeInsets.fromLTRB(
+        OnboardingConstants.stepHorizontalPad,
+        OnboardingConstants.stepTopPad,
+        OnboardingConstants.stepHorizontalPad,
+        OnboardingConstants.stepTopPad,
+      ),
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _StepTitle(
-            title: firstName.isNotEmpty
-                ? 'Last step,\n$firstName!'
-                : 'One last step!',
-            subtitle: 'Add a profile photo so others can see you.',
+          FadeAnimation(
+            delayInMs: 0,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _StepTitle(
+                title: firstName.isNotEmpty
+                    ? 'Last step,\n$firstName!'
+                    : 'One last step!',
+                subtitle: 'Add a profile photo so others can see you.',
+              ),
+            ),
           ),
           const SizedBox(height: 32),
 
-          // Photo card
-          GestureDetector(
-            onTap: uploaded ? null : onPhotoTap,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 280),
-              width: 180, height: 220,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(
-                  color: scanStep == 2
-                      ? AppTheme.success
-                      : uploaded
-                      ? Colors.grey.shade300
-                      : AppTheme.brandPrimary.withValues(alpha: 0.30),
-                  width: scanStep == 2 ? 2.5 : 1.5,
-                ),
-                boxShadow: scanStep == 2
-                    ? [BoxShadow(
-                  color: AppTheme.success.withValues(alpha: 0.20),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                )]
-                    : AppTheme.mediumShadow,
-                image: uploaded
-                    ? const DecorationImage(
-                  image: NetworkImage(
-                    'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d'
-                        '?auto=format&fit=crop&w=800&q=80',
+          // ── FIX 4 + 8: Material+InkWell on photo card ────
+          // InkWell(onTap: null) = auto-disabled, no ripple when uploaded
+          FadeAnimation(
+            delayInMs: 100,
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(
+                  OnboardingConstants.photoCardRadius),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                // ── FIX 8: null onTap when uploaded = no ripple ──
+                onTap: uploaded ? null : onPhotoTap,
+                borderRadius: BorderRadius.circular(
+                    OnboardingConstants.photoCardRadius),
+                splashColor: AppTheme.brandPrimary.withValues(alpha: 0.06),
+                child: AnimatedContainer(
+                  duration: OnboardingConstants.containerAnimDuration,
+                  width:  OnboardingConstants.photoCardWidth,
+                  height: OnboardingConstants.photoCardHeight,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(
+                        OnboardingConstants.photoCardRadius),
+                    border: Border.all(
+                      color: scanStep == 2
+                          ? AppTheme.success
+                          : uploaded
+                          ? Colors.grey.shade300
+                          : AppTheme.brandPrimary.withValues(alpha: 0.30),
+                      width: scanStep == 2 ? 2.5 : 1.5,
+                    ),
+                    boxShadow: scanStep == 2
+                        ? [BoxShadow(
+                      color:      AppTheme.success.withValues(alpha: 0.20),
+                      blurRadius: 20,
+                      offset:     const Offset(0, 8),
+                    )]
+                        : AppTheme.mediumShadow,
+                    image: uploaded
+                        ? DecorationImage(
+                      image: NetworkImage(
+                        isFemale
+                            ? AppAssets.dummyFemalePhotos[0]
+                            : AppAssets.dummyMalePhotos[0],
+                      ),
+                      fit: BoxFit.cover,
+                    )
+                        : null,
                   ),
-                  fit: BoxFit.cover,
-                )
-                    : null,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: !uploaded
-                    ? _UploadPlaceholder()
-                    : scanStep == 1
-                    ? _ScanningOverlay()
-                    : const _VerifiedBadge(),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(
+                        OnboardingConstants.photoCardRadius - 2),
+                    child: !uploaded
+                        ? const _UploadPlaceholder()
+                        : scanStep == 1
+                        ? const _ScanningOverlay()
+                        : const _VerifiedBadge(),
+                  ),
+                ),
               ),
             ),
           ),
           const SizedBox(height: 16),
 
-          // Status text
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 280),
-            child: _buildStatus(),
+          FadeAnimation(
+            delayInMs: 180,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 280),
+              child: _buildStatus(),
+            ),
           ),
           const SizedBox(height: 28),
 
-          // Info note
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            decoration: BoxDecoration(
-              color: AppTheme.brandPrimary.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: AppTheme.brandPrimary.withValues(alpha: 0.12),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.info_outline_rounded,
-                  size: 15,
-                  color: AppTheme.brandPrimary.withValues(alpha: 0.65),
+          FadeAnimation(
+            delayInMs: 240,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              decoration: BoxDecoration(
+                color: AppTheme.brandPrimary.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(
+                    OnboardingConstants.infoNoteRadius),
+                border: Border.all(
+                  color: AppTheme.brandPrimary.withValues(alpha: 0.12),
                 ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    'Your city and other details can be filled in after '
-                        'signing up inside the app.',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize:   11,
-                      color: AppTheme.brandDark.withValues(alpha: 0.52),
-                      height: 1.55,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size:  15,
+                    color: AppTheme.brandPrimary.withValues(alpha: 0.65),
+                  ),
+                  const SizedBox(width: 9),
+                  const Expanded(
+                    child: Text(
+                      'Your city and other details can be filled in after '
+                          'signing up inside the app.',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize:   11,
+                        color:      AppTheme.textSecondary,
+                        height:     1.55,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -1290,13 +1293,12 @@ class _Step6Photo extends StatelessWidget {
 
   Widget _buildStatus() {
     if (scanStep == 2) {
-      return Row(
-        key: const ValueKey('verified'),
+      return const Row(
+        key: ValueKey('verified'),
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.check_circle_rounded,
-              size: 15, color: AppTheme.success),
-          const SizedBox(width: 6),
+          Icon(Icons.check_circle_rounded, size: 15, color: AppTheme.success),
+          SizedBox(width: 6),
           Text(
             'Photo verified — looking great!',
             style: TextStyle(
@@ -1310,23 +1312,23 @@ class _Step6Photo extends StatelessWidget {
       );
     }
     if (scanStep == 1) {
-      return Text(
+      return const Text(
         'Verifying your photo...',
-        key: const ValueKey('scanning'),
+        key: ValueKey('scanning'),
         style: TextStyle(
           fontFamily: 'Poppins',
           fontSize:   12,
-          color:      Colors.grey.shade500,
+          color:      AppTheme.textSecondary,
         ),
       );
     }
-    return Text(
+    return const Text(
       'Tap the card above to upload your photo',
-      key: const ValueKey('idle'),
+      key: ValueKey('idle'),
       style: TextStyle(
         fontFamily: 'Poppins',
         fontSize:   12,
-        color:      Colors.grey.shade500,
+        color:      AppTheme.textSecondary,
       ),
     );
   }
@@ -1334,6 +1336,8 @@ class _Step6Photo extends StatelessWidget {
 
 // ── Upload placeholder ────────────────────────────────────────
 class _UploadPlaceholder extends StatelessWidget {
+  const _UploadPlaceholder();
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -1377,6 +1381,8 @@ class _UploadPlaceholder extends StatelessWidget {
 
 // ── Scanning overlay ──────────────────────────────────────────
 class _ScanningOverlay extends StatelessWidget {
+  const _ScanningOverlay();
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1385,7 +1391,7 @@ class _ScanningOverlay extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(
-            color: AppTheme.brandPrimary,
+            color:       AppTheme.brandPrimary,
             strokeWidth: 2.5,
           ),
           SizedBox(height: 14),
@@ -1417,13 +1423,13 @@ class _VerifiedBadge extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 7),
             decoration: BoxDecoration(
-              color: AppTheme.success,
+              color:        AppTheme.success,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.success.withValues(alpha: 0.35),
+                  color:      AppTheme.success.withValues(alpha: 0.35),
                   blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  offset:     const Offset(0, 4),
                 ),
               ],
             ),
@@ -1452,7 +1458,7 @@ class _VerifiedBadge extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════
-// CELEBRATION OVERLAY — confetti + welcome card
+// CELEBRATION OVERLAY
 // ══════════════════════════════════════════════════════════════
 class _CelebrationOverlay extends StatefulWidget {
   const _CelebrationOverlay({required this.firstName});
@@ -1492,12 +1498,15 @@ class _CelebrationOverlayState extends State<_CelebrationOverlay>
       isCircle: rng.nextBool(),
     ));
 
-    _fadeCtrl     = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 350));
-    _scaleCtrl    = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 550));
-    _confettiCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 2700));
+    _fadeCtrl     = AnimationController(
+        vsync: this,
+        duration: OnboardingConstants.celebrationFadeDuration);
+    _scaleCtrl    = AnimationController(
+        vsync: this,
+        duration: OnboardingConstants.celebrationScaleDuration);
+    _confettiCtrl = AnimationController(
+        vsync: this,
+        duration: OnboardingConstants.confettiDuration);
 
     _fadeAnim  = CurvedAnimation(parent: _fadeCtrl,  curve: Curves.easeOut);
     _scaleAnim = Tween<double>(begin: 0.75, end: 1.0).animate(
@@ -1524,11 +1533,10 @@ class _CelebrationOverlayState extends State<_CelebrationOverlay>
         color: Colors.black.withValues(alpha: 0.60),
         child: Stack(
           children: [
-
-            // Confetti
+            // ── FIX 3: builder: (_, _) → (_, __) — compile fix ──
             AnimatedBuilder(
               animation: _confettiCtrl,
-              builder: (_, _) => CustomPaint(
+              builder: (_, __) => CustomPaint(
                 size: MediaQuery.of(context).size,
                 painter: _ConfettiPainter(
                   particles: _particles,
@@ -1537,27 +1545,27 @@ class _CelebrationOverlayState extends State<_CelebrationOverlay>
               ),
             ),
 
-            // Welcome card
             Center(
               child: ScaleTransition(
                 scale: _scaleAnim,
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 36),
+                  margin:  const EdgeInsets.symmetric(horizontal: 36),
                   padding: const EdgeInsets.all(30),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: [BoxShadow(
-                      color:      Colors.black.withValues(alpha: 0.20),
-                      blurRadius: 36,
-                      offset:     const Offset(0, 14),
-                    )],
+                    color:        Colors.white,
+                    borderRadius: BorderRadius.circular(
+                        AuthConstants.cardRadius),
+                    boxShadow: [
+                      BoxShadow(
+                        color:      Colors.black.withValues(alpha: 0.20),
+                        blurRadius: 36,
+                        offset:     const Offset(0, 14),
+                      ),
+                    ],
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-
-                      // Gold crown icon
                       Container(
                         width: 72, height: 72,
                         decoration: const BoxDecoration(
@@ -1576,22 +1584,23 @@ class _CelebrationOverlayState extends State<_CelebrationOverlay>
                         widget.firstName.isNotEmpty
                             ? 'Welcome, ${widget.firstName}! 🎉'
                             : 'Welcome! 🎉',
+                        textAlign: TextAlign.center, // FIX: center for long names
                         style: const TextStyle(
                           fontFamily:  'Cormorant Garamond',
-                          fontSize:    26,
+                          fontSize:    22, // FIX: was 26 — emoji wrap fix
                           fontWeight:  FontWeight.w700,
                           color:       AppTheme.brandDark,
                         ),
                       ),
                       const SizedBox(height: 8),
 
-                      Text(
+                      const Text(
                         'Your profile is ready.\nStep into the VIP Lounge.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontFamily: 'Poppins',
                           fontSize:   13,
-                          color:      Colors.grey.shade500,
+                          color:      AppTheme.textSecondary,
                           height:     1.5,
                         ),
                       ),
@@ -1601,7 +1610,7 @@ class _CelebrationOverlayState extends State<_CelebrationOverlay>
                         backgroundColor: Color(0xFFF0F0F0),
                         valueColor: AlwaysStoppedAnimation<Color>(
                             AppTheme.brandPrimary),
-                        minHeight: 3,
+                        minHeight:    3,
                         borderRadius: BorderRadius.all(Radius.circular(4)),
                       ),
                     ],
@@ -1646,7 +1655,7 @@ class _ConfettiPainter extends CustomPainter {
       final t = ((progress - p.delay) / (1 - p.delay)).clamp(0.0, 1.0);
       if (t <= 0) continue;
       final opacity = t < 0.75 ? 1.0 : (1.0 - t) / 0.25;
-      final paint = Paint()
+      final paint   = Paint()
         ..color = p.color.withValues(alpha: opacity)
         ..style = PaintingStyle.fill;
       canvas.save();
@@ -1657,9 +1666,10 @@ class _ConfettiPainter extends CustomPainter {
       } else {
         canvas.drawRect(
           Rect.fromCenter(
-              center: Offset.zero,
-              width:  p.size,
-              height: p.size * 0.45),
+            center: Offset.zero,
+            width:  p.size,
+            height: p.size * 0.45,
+          ),
           paint,
         );
       }

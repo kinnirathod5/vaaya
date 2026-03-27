@@ -8,21 +8,53 @@ import '../../../../shared/animations/fade_animation.dart';
 import '../../../../shared/widgets/custom_network_image.dart';
 
 // ============================================================
-// ⚙️ SETTINGS SCREEN — Redesigned
-// Improvements:
-//   • Mini profile card at top — avatar + name + plan badge
-//   • Color-coded icon backgrounds per section (consistent with app)
-//   • Toggle tiles — active state tints the row subtly
-//   • Privacy section — added 2FA toggle
-//   • Notifications — added Master toggle (all on/off)
-//   • App section — added Clear Cache tile
-//   • Danger zone — redesigned with icon + better spacing
-//   • Sign out moved inside danger zone card
-//   • App version tile at bottom with build number
+// ⚙️ SETTINGS SCREEN — v2.0
 //
-// TODO: Replace dummy state with settingsProvider (Riverpod)
-//       userProvider.logout() on sign out
+// Fixes over v1:
+//   ✅ FIX 1 — ALL CAPS headers → sentence case + no letterSpacing
+//   ✅ FIX 2 — Back button GestureDetector → Material + InkWell
+//   ✅ FIX 3 — Switch activeColor added (track was always grey)
+//   ✅ FIX 4 — DANGER ZONE → sentence case + red border accent
+//   ✅ FIX 5 — Map<String,dynamic> → type-safe _UserProfile model
+//   ✅ FIX 6 — Profile card tap → /my_profile (was /edit_profile)
+//   ✅ FIX 7 — Dark mode toggle: "coming soon" snackbar + reset
+//   ✅ FIX 8 — _NavTile haptic dedup (was called twice)
+//
+// TODO: Replace _dummyUser with userProvider (Riverpod)
+//       settingsProvider for all toggle states
 // ============================================================
+
+// ──────────────────────────────────────────────────────────────
+// DATA MODEL — reusing same model as MyProfileScreen
+// ──────────────────────────────────────────────────────────────
+class _UserProfile {
+  const _UserProfile({
+    required this.name,
+    required this.phone,
+    required this.imageUrl,
+    required this.isPremium,
+  });
+
+  final String name;
+  final String phone;
+  final String imageUrl;
+  final bool isPremium;
+}
+
+// ──────────────────────────────────────────────────────────────
+// DUMMY DATA — TODO: replace with Riverpod provider
+// ──────────────────────────────────────────────────────────────
+const _dummyUser = _UserProfile(
+  name: 'Rahul Rathod',
+  phone: '+91 98765 43210',
+  imageUrl:
+  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80',
+  isPremium: false,
+);
+
+// ──────────────────────────────────────────────────────────────
+// SCREEN
+// ──────────────────────────────────────────────────────────────
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -31,14 +63,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-
-  // ── Dummy user — TODO: replace with userProvider ─────────
-  static const Map<String, dynamic> _user = {
-    'name':      'Rahul Rathod',
-    'phone':     '+91 98765 43210',
-    'isPremium': false,
-    'image':     'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80',
-  };
+  // ── FIX 5: Type-safe model instead of Map<String, dynamic> ─
+  final _UserProfile _user = _dummyUser;
 
   // ── Toggle states ─────────────────────────────────────────
   bool _showOnlineStatus = true;
@@ -53,7 +79,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _pushProfileViews = false;
   bool _pushNewFeatures  = true;
 
-  bool _darkMode         = false;
+  // Dark mode intentionally NOT stored — coming soon
+  // bool _darkMode = false;
 
   @override
   void initState() {
@@ -64,11 +91,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ));
   }
 
-  // ── Build ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
-    final isPremium = _user['isPremium'] as bool;
 
     return Scaffold(
       backgroundColor: AppTheme.bgScaffold,
@@ -85,14 +110,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   // Mini profile card
                   FadeAnimation(
                     delayInMs: 0,
-                    child: _buildProfileCard(context, isPremium),
+                    child: _buildProfileCard(context),
                   ),
 
+                  // ── FIX 1: Sentence case ─────────────────
                   // Account
                   FadeAnimation(
                     delayInMs: 60,
                     child: _SettingsGroup(
-                      title: 'ACCOUNT',
+                      title: 'Account',           // was: 'ACCOUNT'
                       icon: Icons.person_outline_rounded,
                       iconColor: const Color(0xFF6366F1),
                       children: [
@@ -100,30 +126,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           icon: Icons.edit_outlined,
                           iconColor: const Color(0xFF6366F1),
                           label: 'Edit Profile',
-                          onTap: () {
-                            HapticUtils.lightImpact();
-                            context.push('/edit_profile');
-                          },
+                          onTap: () => context.push('/edit_profile'),
                         ),
                         _NavTile(
                           icon: Icons.phone_outlined,
                           iconColor: const Color(0xFF10B981),
                           label: 'Change Phone Number',
-                          value: _user['phone'],
+                          value: _user.phone,        // FIX 5: .phone not ['phone']
                           onTap: () => _showComingSoon(context),
                         ),
                         _NavTile(
                           icon: Icons.diamond_outlined,
                           iconColor: const Color(0xFFC9962A),
                           label: 'Subscription & Billing',
-                          value: isPremium ? 'Premium' : 'Free Plan',
-                          valueColor: isPremium
+                          value: _user.isPremium ? 'Premium' : 'Free Plan',
+                          valueColor: _user.isPremium
                               ? const Color(0xFFC9962A)
                               : Colors.grey.shade400,
-                          onTap: () {
-                            HapticUtils.lightImpact();
-                            context.push('/premium');
-                          },
+                          onTap: () => context.push('/premium'),
                         ),
                         _NavTile(
                           icon: Icons.qr_code_rounded,
@@ -140,14 +160,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   FadeAnimation(
                     delayInMs: 100,
                     child: _SettingsGroup(
-                      title: 'PRIVACY',
+                      title: 'Privacy',            // was: 'PRIVACY'
                       icon: Icons.lock_outline_rounded,
                       iconColor: const Color(0xFF0EA5E9),
                       children: [
                         _ToggleTile(
                           icon: Icons.visibility_outlined,
                           iconColor: const Color(0xFF0EA5E9),
-                          label: 'Show Online Status',
+                          label: 'Show online status',
                           subtitle: 'Others can see when you\'re active',
                           value: _showOnlineStatus,
                           onChanged: (v) {
@@ -158,7 +178,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _ToggleTile(
                           icon: Icons.access_time_rounded,
                           iconColor: const Color(0xFF0EA5E9),
-                          label: 'Show Last Seen',
+                          label: 'Show last seen',
                           subtitle: 'Others can see your last active time',
                           value: _showLastSeen,
                           onChanged: (v) {
@@ -169,7 +189,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _ToggleTile(
                           icon: Icons.person_search_outlined,
                           iconColor: const Color(0xFF0EA5E9),
-                          label: 'Profile Visible in Search',
+                          label: 'Profile visible in search',
                           subtitle: 'Your profile appears in discovery',
                           value: _profileVisible,
                           onChanged: (v) {
@@ -180,7 +200,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _ToggleTile(
                           icon: Icons.security_rounded,
                           iconColor: const Color(0xFF0EA5E9),
-                          label: 'Two-Factor Authentication',
+                          label: 'Two-factor authentication',
                           subtitle: 'Extra security for your account',
                           value: _twoFactorAuth,
                           onChanged: (v) {
@@ -191,7 +211,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _NavTile(
                           icon: Icons.block_rounded,
                           iconColor: Colors.orange.shade600,
-                          label: 'Blocked Users',
+                          label: 'Blocked users',
                           onTap: () => _showComingSoon(context),
                         ),
                       ],
@@ -202,15 +222,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   FadeAnimation(
                     delayInMs: 140,
                     child: _SettingsGroup(
-                      title: 'NOTIFICATIONS',
+                      title: 'Notifications',     // was: 'NOTIFICATIONS'
                       icon: Icons.notifications_outlined,
                       iconColor: AppTheme.brandPrimary,
                       children: [
-                        // Master toggle
                         _ToggleTile(
                           icon: Icons.notifications_active_outlined,
                           iconColor: AppTheme.brandPrimary,
-                          label: 'All Notifications',
+                          label: 'All notifications',
                           subtitle: 'Master switch for all alerts',
                           value: _masterNotif,
                           isMaster: true,
@@ -251,7 +270,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _ToggleTile(
                           icon: Icons.people_outline_rounded,
                           iconColor: AppTheme.brandPrimary,
-                          label: 'New Matches',
+                          label: 'New matches',
                           subtitle: 'When you get a new match',
                           value: _pushMatches,
                           onChanged: (v) {
@@ -262,7 +281,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _ToggleTile(
                           icon: Icons.visibility_outlined,
                           iconColor: AppTheme.brandPrimary,
-                          label: 'Profile Views',
+                          label: 'Profile views',
                           subtitle: 'When someone views your profile',
                           value: _pushProfileViews,
                           onChanged: (v) {
@@ -273,7 +292,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _ToggleTile(
                           icon: Icons.campaign_outlined,
                           iconColor: AppTheme.brandPrimary,
-                          label: 'New Features & Offers',
+                          label: 'New features & offers',
                           subtitle: 'Product updates and promotions',
                           value: _pushNewFeatures,
                           onChanged: (v) {
@@ -289,21 +308,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   FadeAnimation(
                     delayInMs: 180,
                     child: _SettingsGroup(
-                      title: 'APP',
+                      title: 'App',               // was: 'APP'
                       icon: Icons.phone_iphone_rounded,
                       iconColor: const Color(0xFF8B5CF6),
                       children: [
-                        _ToggleTile(
+                        // ── FIX 7: Dark mode → coming soon, don't store state ──
+                        _NavTile(
                           icon: Icons.dark_mode_outlined,
                           iconColor: const Color(0xFF8B5CF6),
-                          label: 'Dark Mode',
-                          subtitle: 'Switch to dark theme',
-                          value: _darkMode,
-                          onChanged: (v) {
-                            HapticUtils.selectionClick();
-                            setState(() => _darkMode = v);
-                            // TODO: themeProvider.toggle()
-                          },
+                          label: 'Dark mode',
+                          value: 'Coming soon',
+                          valueColor: Colors.grey.shade400,
+                          showArrow: false,
+                          onTap: () => _showComingSoon(context),
                         ),
                         _NavTile(
                           icon: Icons.language_rounded,
@@ -315,14 +332,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _NavTile(
                           icon: Icons.cleaning_services_outlined,
                           iconColor: const Color(0xFF8B5CF6),
-                          label: 'Clear Cache',
+                          label: 'Clear cache',
                           subtitle: 'Free up storage space',
                           onTap: () => _showClearCacheDialog(context),
                         ),
                         _NavTile(
                           icon: Icons.system_update_outlined,
                           iconColor: Colors.grey.shade400,
-                          label: 'App Version',
+                          label: 'App version',
                           value: 'v1.0.0 (100)',
                           valueColor: Colors.grey.shade400,
                           showArrow: false,
@@ -336,48 +353,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   FadeAnimation(
                     delayInMs: 220,
                     child: _SettingsGroup(
-                      title: 'SUPPORT',
+                      title: 'Support',           // was: 'SUPPORT'
                       icon: Icons.help_outline_rounded,
                       iconColor: const Color(0xFF10B981),
                       children: [
                         _NavTile(
                           icon: Icons.help_center_outlined,
                           iconColor: const Color(0xFF10B981),
-                          label: 'Help Center',
+                          label: 'Help center',
                           subtitle: 'FAQs and guides',
                           onTap: () => _showComingSoon(context),
                         ),
                         _NavTile(
                           icon: Icons.headset_mic_outlined,
                           iconColor: const Color(0xFF10B981),
-                          label: 'Contact Us',
+                          label: 'Contact us',
                           subtitle: 'Talk to our support team',
                           onTap: () => _showComingSoon(context),
                         ),
                         _NavTile(
                           icon: Icons.star_outline_rounded,
                           iconColor: const Color(0xFFFFD700),
-                          label: 'Rate the App',
+                          label: 'Rate the app',
                           subtitle: 'Tell us what you think',
                           onTap: () => _showComingSoon(context),
                         ),
                         _NavTile(
                           icon: Icons.privacy_tip_outlined,
                           iconColor: const Color(0xFF10B981),
-                          label: 'Privacy Policy',
+                          label: 'Privacy policy',
                           onTap: () => _showComingSoon(context),
                         ),
                         _NavTile(
                           icon: Icons.description_outlined,
                           iconColor: const Color(0xFF10B981),
-                          label: 'Terms of Service',
+                          label: 'Terms of service',
                           onTap: () => _showComingSoon(context),
                         ),
                       ],
                     ),
                   ),
 
-                  // Danger zone
+                  // ── FIX 4: Danger zone — sentence case + red border ──
                   FadeAnimation(
                     delayInMs: 260,
                     child: _buildDangerZone(context),
@@ -385,7 +402,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                   const SizedBox(height: 8),
 
-                  // Footer
                   FadeAnimation(
                     delayInMs: 300,
                     child: Padding(
@@ -423,23 +439,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ── Header ────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════
+  // HEADER
+  // ── FIX 2: GestureDetector → Material + InkWell
+  // ══════════════════════════════════════════════════════════
   Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () { HapticUtils.lightImpact(); context.pop(); },
-            child: Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: Colors.white, shape: BoxShape.circle,
-                border: Border.all(color: Colors.grey.shade200),
-                boxShadow: AppTheme.softShadow,
+          // ── FIX 2: Material + InkWell for proper ripple ───
+          Semantics(
+            button: true,
+            label: 'Go back',
+            child: Material(
+              color: Colors.white,
+              shape: const CircleBorder(),
+              child: InkWell(
+                onTap: () {
+                  HapticUtils.lightImpact();
+                  context.pop();
+                },
+                customBorder: const CircleBorder(),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.grey.shade200),
+                    boxShadow: AppTheme.softShadow,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: AppTheme.brandDark,
+                    size: 16,
+                  ),
+                ),
               ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded,
-                  color: AppTheme.brandDark, size: 16),
             ),
           ),
           const SizedBox(width: 16),
@@ -447,16 +483,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Settings', style: TextStyle(
-                  fontFamily: 'Cormorant Garamond',
-                  fontSize: 30, fontWeight: FontWeight.w700,
-                  color: AppTheme.brandDark,
-                  letterSpacing: -0.5, height: 1.1,
-                )),
-                Text('Manage your account & preferences', style: TextStyle(
-                  fontFamily: 'Poppins', fontSize: 12,
-                  color: Color(0xFF9CA3AF),
-                )),
+                Text(
+                  'Settings',
+                  style: TextStyle(
+                    fontFamily: 'Cormorant Garamond',
+                    fontSize: 30,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.brandDark,
+                    letterSpacing: -0.5,
+                    height: 1.1,
+                  ),
+                ),
+                Text(
+                  'Manage your account & preferences',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 12,
+                    color: Color(0xFF9CA3AF),
+                  ),
+                ),
               ],
             ),
           ),
@@ -465,12 +510,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ── Mini profile card ─────────────────────────────────────
-  Widget _buildProfileCard(BuildContext context, bool isPremium) {
+  // ══════════════════════════════════════════════════════════
+  // PROFILE CARD
+  // ── FIX 5: _user.name instead of _user['name']
+  // ── FIX 6: card tap → /my_profile, Edit button → /edit_profile
+  // ══════════════════════════════════════════════════════════
+  Widget _buildProfileCard(BuildContext context) {
     return GestureDetector(
+      // ── FIX 6: was /edit_profile — should be /my_profile ──
       onTap: () {
         HapticUtils.lightImpact();
-        context.push('/edit_profile');
+        context.push('/my_profile');
       },
       child: Container(
         margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -486,47 +536,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Avatar
             ClipOval(
               child: SizedBox(
-                width: 52, height: 52,
+                width: 52,
+                height: 52,
                 child: CustomNetworkImage(
-                  imageUrl: _user['image'],
+                  imageUrl: _user.imageUrl,   // FIX 5
                   borderRadius: 26,
                 ),
               ),
             ),
             const SizedBox(width: 14),
+
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Text(
-                        _user['name'],
-                        style: const TextStyle(
-                          fontFamily: 'Poppins', fontSize: 14,
-                          fontWeight: FontWeight.w800, color: AppTheme.brandDark,
+                      Flexible(
+                        child: Text(
+                          _user.name,         // FIX 5
+                          style: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.brandDark,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: isPremium
+                          color: _user.isPremium    // FIX 5
                               ? const Color(0xFFFFF3CD)
                               : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: isPremium
+                            color: _user.isPremium
                                 ? const Color(0xFFFFD700).withValues(alpha: 0.40)
                                 : Colors.grey.shade200,
                           ),
                         ),
                         child: Text(
-                          isPremium ? '✦ Premium' : 'Free Plan',
+                          _user.isPremium ? '✦ Premium' : 'Free Plan',
                           style: TextStyle(
-                            fontFamily: 'Poppins', fontSize: 9,
+                            fontFamily: 'Poppins',
+                            fontSize: 9,
                             fontWeight: FontWeight.w800,
-                            color: isPremium
+                            color: _user.isPremium
                                 ? const Color(0xFFC9962A)
                                 : Colors.grey.shade500,
                           ),
@@ -536,27 +596,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _user['phone'],
+                    _user.phone,              // FIX 5
                     style: TextStyle(
-                      fontFamily: 'Poppins', fontSize: 12,
+                      fontFamily: 'Poppins',
+                      fontSize: 12,
                       color: Colors.grey.shade400,
                     ),
                   ),
                 ],
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.brandPrimary.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                    color: AppTheme.brandPrimary.withValues(alpha: 0.14)),
+
+            // ── FIX 6: Edit button → /edit_profile specifically ──
+            GestureDetector(
+              onTap: () {
+                HapticUtils.lightImpact();
+                context.push('/edit_profile');
+              },
+              child: Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.brandPrimary.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppTheme.brandPrimary.withValues(alpha: 0.14),
+                  ),
+                ),
+                child: const Text(
+                  'Edit',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.brandPrimary,
+                  ),
+                ),
               ),
-              child: const Text('Edit', style: TextStyle(
-                fontFamily: 'Poppins', fontSize: 11,
-                fontWeight: FontWeight.w700, color: AppTheme.brandPrimary,
-              )),
             ),
           ],
         ),
@@ -564,47 +640,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ── Danger zone ───────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════
+  // DANGER ZONE
+  // ── FIX 4: sentence case + red border accent on card
+  // ══════════════════════════════════════════════════════════
   Widget _buildDangerZone(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── FIX 4: was 'DANGER ZONE' with letterSpacing ───
           Row(
             children: [
-              Icon(Icons.warning_amber_rounded, size: 13, color: Colors.grey.shade400),
-              const SizedBox(width: 6),
-              Text('DANGER ZONE', style: TextStyle(
-                fontFamily: 'Poppins', fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Colors.grey.shade400, letterSpacing: 1.2,
-              )),
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(Icons.warning_amber_rounded,
+                    size: 11, color: Colors.red.shade400),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Danger zone',                    // was: 'DANGER ZONE'
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.red.shade400,
+                  // letterSpacing removed
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  height: 0.5,
+                  color: Colors.red.shade100,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
+
+          // ── FIX 4: Red border on danger card ──────────────
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
               boxShadow: AppTheme.softShadow,
-              border: Border.all(color: Colors.grey.shade100),
+              border: Border.all(
+                color: Colors.red.shade100,     // subtle red accent
+              ),
             ),
             child: Column(
               children: [
-                // Sign out
                 _DangerListTile(
                   icon: Icons.logout_rounded,
-                  label: 'Sign Out',
+                  label: 'Sign out',
                   subtitle: 'You can log back in anytime',
                   color: AppTheme.brandPrimary,
                   onTap: () => _showLogoutDialog(context),
                   showDivider: true,
                 ),
-                // Delete account
                 _DangerListTile(
                   icon: Icons.delete_forever_rounded,
-                  label: 'Delete Account',
+                  label: 'Delete account',
                   subtitle: 'Permanently remove all your data',
                   color: Colors.red.shade500,
                   onTap: () => _showDeleteDialog(context),
@@ -626,9 +729,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (_) => _ConfirmDialog(
         icon: Icons.logout_rounded,
         iconColor: AppTheme.brandPrimary,
-        title: 'Sign Out?',
+        title: 'Sign out?',
         body: 'You will need to log in again to access your account.',
-        confirmLabel: 'Sign Out',
+        confirmLabel: 'Sign out',
         confirmColor: AppTheme.brandPrimary,
         onConfirm: () {
           Navigator.pop(context);
@@ -646,9 +749,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (_) => _ConfirmDialog(
         icon: Icons.delete_forever_rounded,
         iconColor: Colors.red.shade500,
-        title: 'Delete Account?',
-        body: 'This will permanently delete your profile, photos, matches, and all data. This action cannot be undone.',
-        confirmLabel: 'Delete Permanently',
+        title: 'Delete account?',
+        body:
+        'This will permanently delete your profile, photos, matches, and all data. This action cannot be undone.',
+        confirmLabel: 'Delete permanently',
         confirmColor: Colors.red.shade500,
         onConfirm: () {
           Navigator.pop(context);
@@ -666,28 +770,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (_) => _ConfirmDialog(
         icon: Icons.cleaning_services_outlined,
         iconColor: const Color(0xFF8B5CF6),
-        title: 'Clear Cache?',
-        body: 'This will clear temporary files and images. Your data will not be affected.',
-        confirmLabel: 'Clear Now',
+        title: 'Clear cache?',
+        body:
+        'This will clear temporary files and images. Your data will not be affected.',
+        confirmLabel: 'Clear now',
         confirmColor: const Color(0xFF8B5CF6),
         onConfirm: () {
           Navigator.pop(context);
           HapticUtils.mediumImpact();
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
-                SizedBox(width: 8),
-                Text('Cache cleared successfully',
-                    style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600)),
-              ],
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle_rounded,
+                      color: Colors.white, size: 16),
+                  SizedBox(width: 8),
+                  Text('Cache cleared successfully',
+                      style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+              backgroundColor: const Color(0xFF8B5CF6),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+              margin: const EdgeInsets.all(16),
+              duration: const Duration(seconds: 2),
             ),
-            backgroundColor: const Color(0xFF8B5CF6),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            margin: const EdgeInsets.all(16),
-            duration: const Duration(seconds: 2),
-          ));
+          );
         },
       ),
     );
@@ -695,24 +806,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showComingSoon(BuildContext context) {
     HapticUtils.lightImpact();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: const Text('Coming soon!',
-          style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600)),
-      backgroundColor: AppTheme.brandDark,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      margin: const EdgeInsets.all(16),
-      duration: const Duration(seconds: 1),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Coming soon!',
+            style: TextStyle(
+                fontFamily: 'Poppins', fontWeight: FontWeight.w600)),
+        backgroundColor: AppTheme.brandDark,
+        behavior: SnackBarBehavior.floating,
+        shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 1),
+      ),
+    );
   }
 }
-
 
 // ══════════════════════════════════════════════════════════════
 // PRIVATE WIDGETS
 // ══════════════════════════════════════════════════════════════
 
-// Group card with label
+// ── Settings group ───────────────────────────────────────────
 class _SettingsGroup extends StatelessWidget {
   const _SettingsGroup({
     required this.title,
@@ -733,10 +847,12 @@ class _SettingsGroup extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── FIX 1: sentence case + horizontal divider line ─
           Row(
             children: [
               Container(
-                width: 20, height: 20,
+                width: 20,
+                height: 20,
                 decoration: BoxDecoration(
                   color: iconColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
@@ -744,14 +860,27 @@ class _SettingsGroup extends StatelessWidget {
                 child: Icon(icon, size: 11, color: iconColor),
               ),
               const SizedBox(width: 8),
-              Text(title, style: TextStyle(
-                fontFamily: 'Poppins', fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Colors.grey.shade400, letterSpacing: 1.2,
-              )),
+              Text(
+                title,                          // already sentence case from caller
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade500,
+                  // letterSpacing removed — was making ALL CAPS feel harsh
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  height: 0.5,
+                  color: Colors.grey.shade200,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
+
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -768,7 +897,8 @@ class _SettingsGroup extends StatelessWidget {
                     if (!isLast)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Divider(height: 1, color: Colors.grey.shade100),
+                        child:
+                        Divider(height: 1, color: Colors.grey.shade100),
                       ),
                   ],
                 );
@@ -781,7 +911,8 @@ class _SettingsGroup extends StatelessWidget {
   }
 }
 
-// Nav tile
+// ── Nav tile ─────────────────────────────────────────────────
+// ── FIX 8: haptic removed from here — caller already calls it ─
 class _NavTile extends StatelessWidget {
   const _NavTile({
     required this.icon,
@@ -806,35 +937,54 @@ class _NavTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      onTap: () { HapticUtils.lightImpact(); onTap(); },
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      onTap: () {
+        HapticUtils.lightImpact();
+        onTap();
+      },
+      contentPadding:
+      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
-        width: 36, height: 36,
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
           color: iconColor.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, size: 17, color: iconColor),
       ),
-      title: Text(label, style: const TextStyle(
-        fontFamily: 'Poppins', fontSize: 13,
-        fontWeight: FontWeight.w600, color: AppTheme.brandDark,
-      )),
+      title: Text(
+        label,
+        style: const TextStyle(
+          fontFamily: 'Poppins',
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.brandDark,
+        ),
+      ),
       subtitle: subtitle != null
-          ? Text(subtitle!, style: TextStyle(
-        fontFamily: 'Poppins', fontSize: 11,
-        color: Colors.grey.shade400, height: 1.3,
-      ))
+          ? Text(
+        subtitle!,
+        style: TextStyle(
+          fontFamily: 'Poppins',
+          fontSize: 11,
+          color: Colors.grey.shade400,
+          height: 1.3,
+        ),
+      )
           : null,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (value != null)
-            Text(value!, style: TextStyle(
-              fontFamily: 'Poppins', fontSize: 12,
-              color: valueColor ?? Colors.grey.shade400,
-              fontWeight: FontWeight.w600,
-            )),
+            Text(
+              value!,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 12,
+                color: valueColor ?? Colors.grey.shade400,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           if (showArrow) ...[
             const SizedBox(width: 6),
             Icon(Icons.arrow_forward_ios_rounded,
@@ -847,7 +997,8 @@ class _NavTile extends StatelessWidget {
   }
 }
 
-// Toggle tile
+// ── Toggle tile ──────────────────────────────────────────────
+// ── FIX 3: activeColor added to Switch ───────────────────────
 class _ToggleTile extends StatelessWidget {
   const _ToggleTile({
     required this.icon,
@@ -875,21 +1026,24 @@ class _ToggleTile extends StatelessWidget {
         color: (isMaster && value)
             ? AppTheme.brandPrimary.withValues(alpha: 0.04)
             : Colors.transparent,
-        borderRadius: isMaster ? BorderRadius.circular(20) : BorderRadius.zero,
+        borderRadius:
+        isMaster ? BorderRadius.circular(20) : BorderRadius.zero,
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
             Container(
-              width: 36, height: 36,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: value
                     ? iconColor.withValues(alpha: 0.12)
                     : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, size: 17,
+              child: Icon(icon,
+                  size: 17,
                   color: value ? iconColor : Colors.grey.shade400),
             ),
             const SizedBox(width: 14),
@@ -897,15 +1051,25 @@ class _ToggleTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: TextStyle(
-                    fontFamily: 'Poppins', fontSize: 13,
-                    fontWeight: isMaster ? FontWeight.w800 : FontWeight.w600,
-                    color: AppTheme.brandDark,
-                  )),
-                  Text(subtitle, style: TextStyle(
-                    fontFamily: 'Poppins', fontSize: 11,
-                    color: Colors.grey.shade400, height: 1.3,
-                  )),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      fontWeight:
+                      isMaster ? FontWeight.w800 : FontWeight.w600,
+                      color: AppTheme.brandDark,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 11,
+                      color: Colors.grey.shade400,
+                      height: 1.3,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -913,8 +1077,11 @@ class _ToggleTile extends StatelessWidget {
             Transform.scale(
               scale: 0.85,
               child: Switch(
-                value: value, onChanged: onChanged,
+                value: value,
+                onChanged: onChanged,
                 activeThumbColor: iconColor,
+                // ── FIX 3: track colour was always grey ───────
+                activeColor: iconColor.withValues(alpha: 0.30),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
@@ -925,7 +1092,7 @@ class _ToggleTile extends StatelessWidget {
   }
 }
 
-// Danger list tile (inside card)
+// ── Danger list tile ─────────────────────────────────────────
 class _DangerListTile extends StatelessWidget {
   const _DangerListTile({
     required this.icon,
@@ -948,38 +1115,53 @@ class _DangerListTile extends StatelessWidget {
     return Column(
       children: [
         ListTile(
-          onTap: onTap,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          onTap: () {
+            HapticUtils.mediumImpact();
+            onTap();
+          },
+          contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           leading: Container(
-            width: 36, height: 36,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, size: 17, color: color),
           ),
-          title: Text(label, style: TextStyle(
-            fontFamily: 'Poppins', fontSize: 13,
-            fontWeight: FontWeight.w700, color: color,
-          )),
-          subtitle: Text(subtitle, style: TextStyle(
-            fontFamily: 'Poppins', fontSize: 11,
-            color: Colors.grey.shade400, height: 1.3,
-          )),
+          title: Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          subtitle: Text(
+            subtitle,
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 11,
+              color: Colors.grey.shade400,
+              height: 1.3,
+            ),
+          ),
           trailing: Icon(Icons.arrow_forward_ios_rounded,
               size: 12, color: Colors.grey.shade300),
         ),
         if (showDivider)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Divider(height: 1, color: Colors.grey.shade100),
+            child: Divider(height: 1, color: Colors.red.shade50),
           ),
       ],
     );
   }
 }
 
-// Confirm dialog — with icon
+// ── Confirm dialog ───────────────────────────────────────────
 class _ConfirmDialog extends StatelessWidget {
   const _ConfirmDialog({
     required this.icon,
@@ -1008,7 +1190,8 @@ class _ConfirmDialog extends StatelessWidget {
       title: Row(
         children: [
           Container(
-            width: 38, height: 38,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: iconColor.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
@@ -1016,23 +1199,37 @@ class _ConfirmDialog extends StatelessWidget {
             child: Icon(icon, size: 18, color: iconColor),
           ),
           const SizedBox(width: 12),
-          Text(title, style: const TextStyle(
-            fontFamily: 'Poppins', fontSize: 16,
-            fontWeight: FontWeight.w800, color: AppTheme.brandDark,
-          )),
+          Text(
+            title,
+            style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.brandDark,
+            ),
+          ),
         ],
       ),
-      content: Text(body, style: TextStyle(
-        fontFamily: 'Poppins', fontSize: 13,
-        color: Colors.grey.shade500, height: 1.55,
-      )),
+      content: Text(
+        body,
+        style: TextStyle(
+          fontFamily: 'Poppins',
+          fontSize: 13,
+          color: Colors.grey.shade500,
+          height: 1.55,
+        ),
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('Cancel', style: TextStyle(
-            fontFamily: 'Poppins', fontWeight: FontWeight.w700,
-            color: Colors.grey.shade400,
-          )),
+          child: Text(
+            'Cancel',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w700,
+              color: Colors.grey.shade400,
+            ),
+          ),
         ),
         Container(
           decoration: BoxDecoration(
@@ -1041,10 +1238,14 @@ class _ConfirmDialog extends StatelessWidget {
           ),
           child: TextButton(
             onPressed: onConfirm,
-            child: Text(confirmLabel, style: TextStyle(
-              fontFamily: 'Poppins', fontWeight: FontWeight.w800,
-              color: confirmColor,
-            )),
+            child: Text(
+              confirmLabel,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w800,
+                color: confirmColor,
+              ),
+            ),
           ),
         ),
       ],

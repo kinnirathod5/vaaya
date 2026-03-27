@@ -2,8 +2,15 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
 // ============================================================
-// 💊 CUSTOM CHIP
-// Selectable pill chip used for filters, tags, and selections.
+// 💊 CUSTOM CHIP — v2.0
+//
+// Fixes over v1:
+//   ✅ FIX 1 — borderRadius: 20 → 10
+//              Was pill-shaped (oval) in screenshots
+//              Compact, professional tag appearance
+//   ✅ FIX 2 — GestureDetector → Material + InkWell
+//              Proper ripple feedback on tap
+//              Consistent with rest of app
 //
 // Variants:
 //   ChipVariant.filled   → solid brand color when selected (default)
@@ -31,25 +38,12 @@ class CustomChip extends StatelessWidget {
     this.enabled = true,
   });
 
-  /// Chip label text
   final String label;
-
-  /// Optional leading icon
   final IconData? icon;
-
-  /// Whether this chip is currently selected
   final bool isSelected;
-
-  /// Tap callback — null means non-interactive display chip
   final VoidCallback? onTap;
-
-  /// Visual style variant
   final ChipVariant variant;
-
-  /// Optional count badge shown after the label (e.g. filter results)
   final int? count;
-
-  /// Whether the chip can be interacted with
   final bool enabled;
 
   // ── Computed colors ───────────────────────────────────────
@@ -94,68 +88,85 @@ class CustomChip extends StatelessWidget {
     return [];
   }
 
+  // ── FIX 1: Consistent radius constant ─────────────────────
+  // was 20 — pill/oval shape in screenshots
+  static const double _radius = 10.0;
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        decoration: BoxDecoration(
-          color: _backgroundColor(),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: _borderColor(),
-            width: isSelected ? 1.5 : 1,
-          ),
-          boxShadow: _shadow(),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-
-            // Leading icon
-            if (icon != null) ...[
-              Icon(icon, size: 14, color: _iconColor()),
-              const SizedBox(width: 5),
-            ],
-
-            // Label
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: _labelColor(),
-                letterSpacing: 0.1,
-              ),
+    // ── FIX 2: Material + InkWell — proper ripple ─────────
+    return Material(
+      color:        Colors.transparent,
+      borderRadius: BorderRadius.circular(_radius),
+      child: InkWell(
+        onTap:        enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(_radius),
+        splashColor:  isSelected
+            ? Colors.white.withValues(alpha: 0.15)
+            : AppTheme.brandPrimary.withValues(alpha: 0.08),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve:    Curves.easeOut,
+          padding:  const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color:        _backgroundColor(),
+            // ── FIX 1: radius 20 → 10 ─────────────────────
+            borderRadius: BorderRadius.circular(_radius),
+            border: Border.all(
+              color: _borderColor(),
+              width: isSelected ? 1.5 : 1,
             ),
+            boxShadow: _shadow(),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
 
-            // Count badge
-            if (count != null) ...[
-              const SizedBox(width: 5),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Colors.white.withValues(alpha: 0.25)
-                      : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
+              // Leading icon
+              if (icon != null) ...[
+                Icon(icon, size: 14, color: _iconColor()),
+                const SizedBox(width: 5),
+              ],
+
+              // Label
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily:  'Poppins',
+                  fontSize:    12,
+                  fontWeight:  isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color:       _labelColor(),
+                  letterSpacing: 0.1,
                 ),
-                child: Text(
-                  '$count',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: isSelected ? Colors.white : Colors.grey.shade500,
+              ),
+
+              // Count badge
+              if (count != null) ...[
+                const SizedBox(width: 5),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Colors.white.withValues(alpha: 0.25)
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: TextStyle(
+                      fontFamily:  'Poppins',
+                      fontSize:    10,
+                      fontWeight:  FontWeight.w700,
+                      color: isSelected
+                          ? Colors.white
+                          : Colors.grey.shade500,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

@@ -13,26 +13,21 @@ import '../../../../shared/widgets/auth_snackbar.dart';
 import '../../../../shared/widgets/handle_bar.dart';
 
 // ============================================================
-// 📱 LOGIN SCREEN — v4.0 Consistent Redesign
+// 📱 LOGIN SCREEN — v6.0
 //
-// Changes from v3:
-//   ✅ Uses shared AuthBackground (no more duplicate)
-//   ✅ Uses shared AuthBottomText (no more duplicate)
-//   ✅ Uses shared HandleBar widget
-//   ✅ Uses shared AuthSnackbar utility
-//   ✅ Uses AuthConstants for all design tokens
-//   ✅ Fixed FocusNode listener memory leak
-//   ✅ Fixed AnimatedBuilder → ListenableBuilder
-//   ✅ Fixed duplicate _ parameter names
-//   ✅ Removed unused _TrustPill widget
-//   ✅ Card radius, button radius/height match OTP screen
-//   ✅ Animation durations + intervals match OTP screen
+// Fixes over v4:
+//   ✅ FIX 1 — "MOBILE NUMBER" label → sentence case
+//              "Mobile number" — consistent with app style
+//   ✅ FIX 2 — Guest button GestureDetector → Material + InkWell
+//              Proper ripple feedback on tap
 //
-// Preserved:
-//   ✅ All logic: validation, OTP send, error handling
-//   ✅ Guest sheet + feature rows
-//   ✅ Keyboard handling + safe area + bounce scroll
-//   ✅ TODO markers for backend hooks
+// All v4 fixes preserved:
+//   ✅ Shared AuthBackground, AuthBottomText, HandleBar, AuthSnackbar
+//   ✅ AuthConstants for all design tokens
+//   ✅ FocusNode listener memory leak fixed
+//   ✅ ListenableBuilder (not AnimatedBuilder)
+//   ✅ No duplicate _ params
+//   ✅ Card/button radius match OTP screen
 // ============================================================
 
 class LoginScreen extends StatefulWidget {
@@ -54,9 +49,9 @@ class _LoginScreenState extends State<LoginScreen>
   late final AnimationController _pulseCtrl;
 
   late final Animation<double> _logoOpacity;
-  late final Animation<Offset> _logoSlide;
+  late final Animation<Offset>  _logoSlide;
   late final Animation<double> _contentOpacity;
-  late final Animation<Offset> _contentSlide;
+  late final Animation<Offset>  _contentSlide;
   late final Animation<double> _btnScale;
   late final Animation<double> _pulseAnim;
 
@@ -148,9 +143,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (valid) {
         _pulseCtrl.repeat(reverse: true);
       } else {
-        _pulseCtrl
-          ..stop()
-          ..reset();
+        _pulseCtrl..stop()..reset();
       }
     }
   }
@@ -175,9 +168,6 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-  // ══════════════════════════════════════════════════════════
-  // BUILD
-  // ══════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
@@ -221,11 +211,8 @@ class _LoginScreenState extends State<LoginScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // ── Brand icon with decorative rings ──────
                 const _BrandIcon(),
                 const SizedBox(height: 8),
-
-                // ── App name ─────────────────────────────
                 RichText(
                   textAlign: TextAlign.center,
                   text: const TextSpan(children: [
@@ -265,8 +252,6 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                 ),
                 const SizedBox(height: 4),
-
-                // ── Headline ─────────────────────────────
                 const Text(
                   'Find your',
                   style: TextStyle(
@@ -292,14 +277,11 @@ class _LoginScreenState extends State<LoginScreen>
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 6),
-
-                // Gradient underline accent
                 ShaderMask(
                   shaderCallback: (rect) =>
                       AppTheme.brandGradient.createShader(rect),
                   child: Container(
-                    width: 72,
-                    height: 3,
+                    width: 72, height: 3,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(2),
@@ -307,8 +289,6 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                 ),
                 const SizedBox(height: 10),
-
-                // ── Stats strip ──────────────────────────
                 const _StatsStrip(),
               ],
             ),
@@ -356,11 +336,9 @@ class _LoginScreenState extends State<LoginScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Handle bar
                 const HandleBar(),
                 const SizedBox(height: 12),
 
-                // Title row + secure badge
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -395,22 +373,21 @@ class _LoginScreenState extends State<LoginScreen>
                     const _SecureBadge(),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
 
-                // Field label
+                // ── FIX 1: Sentence case label ─────────────
                 const Text(
-                  'MOBILE NUMBER',
+                  'Mobile number',        // was: 'MOBILE NUMBER'
                   style: TextStyle(
                     fontFamily: 'Poppins',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFBDBDBD),
-                    letterSpacing: 1.4,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF9CA3AF),
+                    letterSpacing: 0.4,   // was: 1.4 — too harsh
                   ),
                 ),
                 const SizedBox(height: 5),
 
-                // Phone input
                 FadeAnimation(
                   delayInMs: 300,
                   child: _PhoneInputField(
@@ -422,20 +399,17 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
                 const SizedBox(height: 10),
 
-                // OTP button
                 FadeAnimation(
                   delayInMs: 380,
                   child: _buildOTPBtn(),
                 ),
                 const SizedBox(height: 10),
 
-                // OR divider
                 FadeAnimation(
                   delayInMs: 420,
                   child: Row(
                     children: [
-                      Expanded(child: Divider(
-                          color: Colors.grey.shade200, thickness: 1)),
+                      Expanded(child: Divider(color: Colors.grey.shade200, thickness: 1)),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: Text(
@@ -447,21 +421,18 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ),
                       ),
-                      Expanded(child: Divider(
-                          color: Colors.grey.shade200, thickness: 1)),
+                      Expanded(child: Divider(color: Colors.grey.shade200, thickness: 1)),
                     ],
                   ),
                 ),
                 const SizedBox(height: 10),
 
-                // Guest button
                 FadeAnimation(
                   delayInMs: 460,
                   child: _buildGuestBtn(),
                 ),
                 const SizedBox(height: 12),
 
-                // Terms
                 const FadeAnimation(
                   delayInMs: 500,
                   child: AuthBottomText(),
@@ -474,15 +445,13 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Send OTP button ───────────────────────────────────────
+  // ── OTP Button ────────────────────────────────────────────
   Widget _buildOTPBtn() {
     return ListenableBuilder(
       listenable: Listenable.merge([_btnCtrl, _pulseCtrl]),
       builder: (context, child) {
-        final glowAlpha =
-        _isValidPhone ? 0.18 + 0.16 * _pulseAnim.value : 0.0;
-        final blurRadius =
-        _isValidPhone ? 14.0 + 10.0 * _pulseAnim.value : 0.0;
+        final glowAlpha  = _isValidPhone ? 0.18 + 0.16 * _pulseAnim.value : 0.0;
+        final blurRadius = _isValidPhone ? 14.0 + 10.0 * _pulseAnim.value : 0.0;
 
         return Transform.scale(
           scale: _btnScale.value,
@@ -496,13 +465,11 @@ class _LoginScreenState extends State<LoginScreen>
                     ? [const Color(0xFFE8395A), const Color(0xFFFF7190)]
                     : [Colors.grey.shade200, Colors.grey.shade200],
               ),
-              borderRadius:
-              BorderRadius.circular(AuthConstants.buttonRadius),
+              borderRadius: BorderRadius.circular(AuthConstants.buttonRadius),
               boxShadow: _isValidPhone
                   ? [
                 BoxShadow(
-                  color: AppTheme.brandPrimary
-                      .withValues(alpha: glowAlpha),
+                  color: AppTheme.brandPrimary.withValues(alpha: glowAlpha),
                   blurRadius: blurRadius,
                   offset: const Offset(0, 5),
                 ),
@@ -513,17 +480,14 @@ class _LoginScreenState extends State<LoginScreen>
               color: Colors.transparent,
               child: InkWell(
                 onTap: _isValidPhone ? _onSendOTP : null,
-                borderRadius:
-                BorderRadius.circular(AuthConstants.buttonRadius),
+                borderRadius: BorderRadius.circular(AuthConstants.buttonRadius),
                 splashColor: Colors.white.withValues(alpha: 0.12),
                 child: Center(
                   child: _isLoading
                       ? const SizedBox(
-                    width: 22,
-                    height: 22,
+                    width: 22, height: 22,
                     child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
+                      color: Colors.white, strokeWidth: 2.5,
                     ),
                   )
                       : Row(
@@ -533,8 +497,8 @@ class _LoginScreenState extends State<LoginScreen>
                         'Send OTP',
                         style: TextStyle(
                           fontFamily: 'Poppins',
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 16,             // ← FIX 3: was 15
+                          fontWeight: FontWeight.w800, // ← FIX 3: was w700
                           letterSpacing: 0.3,
                           color: _isValidPhone
                               ? Colors.white
@@ -549,8 +513,7 @@ class _LoginScreenState extends State<LoginScreen>
                           padding: EdgeInsets.only(left: 8),
                           child: Icon(
                             Icons.arrow_forward_rounded,
-                            color: Colors.white,
-                            size: 18,
+                            color: Colors.white, size: 18,
                           ),
                         )
                             : const SizedBox.shrink(),
@@ -566,82 +529,81 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Guest button ──────────────────────────────────────────
+  // ── Guest Button ──────────────────────────────────────────
+  // ── FIX 2: Material + InkWell for proper ripple ───────────
   Widget _buildGuestBtn() {
-    return GestureDetector(
-      onTap: () {
-        HapticUtils.lightImpact();
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (_) => _GuestSheet(
-            onGuest: () {
-              Navigator.pop(context);
-              HapticUtils.mediumImpact();
-              // TODO: authProvider.setGuestMode(true)
-              context.go('/dashboard');
-            },
-            onLogin: () {
-              Navigator.pop(context);
-              _phoneFocus.requestFocus();
-            },
+    return Material(
+      color: const Color(0xFFF9F9FB),
+      borderRadius: BorderRadius.circular(AuthConstants.buttonRadius),
+      child: InkWell(
+        onTap: () {
+          HapticUtils.lightImpact();
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (_) => _GuestSheet(
+              onGuest: () {
+                Navigator.pop(context);
+                HapticUtils.mediumImpact();
+                // TODO: authProvider.setGuestMode(true)
+                context.go('/dashboard');
+              },
+              onLogin: () {
+                Navigator.pop(context);
+                _phoneFocus.requestFocus();
+              },
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(AuthConstants.buttonRadius),
+        child: Container(
+          width: double.infinity,
+          height: 46,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AuthConstants.buttonRadius),
+            border: Border.all(color: Colors.grey.shade200, width: 1.5),
           ),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        height: 46,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF9F9FB),
-          borderRadius: BorderRadius.circular(AuthConstants.buttonRadius),
-          border: Border.all(color: Colors.grey.shade200, width: 1.5),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                shape: BoxShape.circle,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 30, height: 30,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.explore_outlined, size: 15, color: Colors.grey.shade500),
               ),
-              child: Icon(
-                Icons.explore_outlined,
-                size: 15,
-                color: Colors.grey.shade500,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              'Explore as Guest',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppTheme.brandPrimary.withValues(alpha: 0.09),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text(
-                '3 free',
+              const SizedBox(width: 10),
+              Text(
+                'Explore as Guest',
                 style: TextStyle(
                   fontFamily: 'Poppins',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.brandPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade600,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppTheme.brandPrimary.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  '3 free',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.brandPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -649,7 +611,7 @@ class _LoginScreenState extends State<LoginScreen>
 }
 
 // ══════════════════════════════════════════════════════════════
-// BRAND ICON — dashed outer ring + halo ring + gradient icon
+// BRAND ICON
 // ══════════════════════════════════════════════════════════════
 class _BrandIcon extends StatelessWidget {
   const _BrandIcon();
@@ -657,12 +619,10 @@ class _BrandIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 80,
-      height: 80,
+      width: 80, height: 80,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Outer dashed ring
           CustomPaint(
             size: const Size(80, 80),
             painter: _DashedRingPainter(
@@ -670,19 +630,15 @@ class _BrandIcon extends StatelessWidget {
               strokeWidth: 1.5,
             ),
           ),
-          // Middle halo ring
           Container(
-            width: 62,
-            height: 62,
+            width: 62, height: 62,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppTheme.brandPrimary.withValues(alpha: 0.07),
             ),
           ),
-          // Inner gradient icon
           Container(
-            width: 46,
-            height: 46,
+            width: 46, height: 46,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: AppTheme.brandGradient,
@@ -705,10 +661,7 @@ class _BrandIcon extends StatelessWidget {
 }
 
 class _DashedRingPainter extends CustomPainter {
-  const _DashedRingPainter({
-    required this.color,
-    required this.strokeWidth,
-  });
+  const _DashedRingPainter({required this.color, required this.strokeWidth});
   final Color color;
   final double strokeWidth;
 
@@ -719,10 +672,8 @@ class _DashedRingPainter extends CustomPainter {
       ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
-
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - strokeWidth;
-
     const dashCount = 28;
     const gap = math.pi * 2 / dashCount;
     const dashLen = gap * 0.52;
@@ -730,20 +681,17 @@ class _DashedRingPainter extends CustomPainter {
       final start = i * gap - math.pi / 2;
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),
-        start,
-        dashLen,
-        false,
-        paint,
+        start, dashLen, false, paint,
       );
     }
   }
 
   @override
-  bool shouldRepaint(_DashedRingPainter oldDelegate) => false;
+  bool shouldRepaint(_DashedRingPainter o) => false;
 }
 
 // ══════════════════════════════════════════════════════════════
-// STATS STRIP — 50K+ Families · 4.8★ Rating · Pan India
+// STATS STRIP
 // ══════════════════════════════════════════════════════════════
 class _StatsStrip extends StatelessWidget {
   const _StatsStrip();
@@ -773,26 +721,16 @@ class _StatItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: AppTheme.brandDark,
-            letterSpacing: -0.3,
-          ),
-        ),
+        Text(value, style: const TextStyle(
+          fontFamily: 'Poppins', fontSize: 14,
+          fontWeight: FontWeight.w800, color: AppTheme.brandDark,
+          letterSpacing: -0.3,
+        )),
         const SizedBox(height: 1),
-        Text(
-          label,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 9,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF9CA3AF),
-          ),
-        ),
+        Text(label, style: const TextStyle(
+          fontFamily: 'Poppins', fontSize: 9,
+          fontWeight: FontWeight.w500, color: Color(0xFF9CA3AF),
+        )),
       ],
     );
   }
@@ -807,17 +745,9 @@ class _StatDivider extends StatelessWidget {
       width: 1,
       height: 26,
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.grey.shade100,
-            Colors.grey.shade300,
-            Colors.grey.shade100,
-          ],
-        ),
-      ),
+      // ── FIX 5: Simple solid color — gradient direction was wrong ─
+      // Vertical divider mein top-fade natural nahi lagta
+      color: Colors.grey.shade300,
     );
   }
 }
@@ -834,25 +764,18 @@ class _SecureBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: AppTheme.success.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppTheme.success.withValues(alpha: 0.18),
-        ),
+        borderRadius: BorderRadius.circular(10), // ← FIX 4: was 20 (pill)
+        border: Border.all(color: AppTheme.success.withValues(alpha: 0.18)),
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.shield_outlined, size: 11, color: AppTheme.success),
           SizedBox(width: 4),
-          Text(
-            'Secure',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.success,
-            ),
-          ),
+          Text('Secure', style: TextStyle(
+            fontFamily: 'Poppins', fontSize: 10,
+            fontWeight: FontWeight.w700, color: AppTheme.success,
+          )),
         ],
       ),
     );
@@ -913,6 +836,8 @@ class _PhoneInputFieldState extends State<_PhoneInputField> {
   Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
+      // ── FIX 1: clipBehavior — right side check icon clip fix ─
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: _bgColor,
         borderRadius: BorderRadius.circular(18),
@@ -920,9 +845,7 @@ class _PhoneInputFieldState extends State<_PhoneInputField> {
         boxShadow: (widget.isValid || _hasFocus)
             ? [
           BoxShadow(
-            color: (widget.isValid
-                ? AppTheme.success
-                : AppTheme.brandPrimary)
+            color: (widget.isValid ? AppTheme.success : AppTheme.brandPrimary)
                 .withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
@@ -932,34 +855,22 @@ class _PhoneInputFieldState extends State<_PhoneInputField> {
       ),
       child: Row(
         children: [
-          // Country prefix
           Container(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('🇮🇳', style: TextStyle(fontSize: 17)),
                 const SizedBox(width: 6),
-                Text(
-                  '+91',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.grey.shade700,
-                  ),
-                ),
+                Text('+91', style: TextStyle(
+                  fontFamily: 'Poppins', fontSize: 14,
+                  fontWeight: FontWeight.w700, color: Colors.grey.shade700,
+                )),
                 const SizedBox(width: 3),
-                Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  size: 15,
-                  color: Colors.grey.shade400,
-                ),
+                Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: Colors.grey.shade400),
               ],
             ),
           ),
-          // Number input
           Expanded(
             child: TextField(
               controller: widget.controller,
@@ -969,42 +880,34 @@ class _PhoneInputFieldState extends State<_PhoneInputField> {
               onSubmitted: widget.onSubmitted,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.brandDark,
+                fontFamily: 'Poppins', fontSize: 18,
+                fontWeight: FontWeight.w700, color: AppTheme.brandDark,
                 letterSpacing: 2.5,
               ),
               decoration: InputDecoration(
                 hintText: '98765 43210',
                 hintStyle: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 15,
-                  color: Colors.grey.shade300,
-                  fontWeight: FontWeight.w400,
+                  fontFamily: 'Poppins', fontSize: 15,
+                  color: Colors.grey.shade300, fontWeight: FontWeight.w400,
                   letterSpacing: 1.5,
                 ),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
+                // ── FIX 2: All 6 borders none — OTP fix jaisa ─
+                border:             const OutlineInputBorder(borderSide: BorderSide.none),
+                enabledBorder:      const OutlineInputBorder(borderSide: BorderSide.none),
+                focusedBorder:      const OutlineInputBorder(borderSide: BorderSide.none),
+                errorBorder:        const OutlineInputBorder(borderSide: BorderSide.none),
+                focusedErrorBorder: const OutlineInputBorder(borderSide: BorderSide.none),
+                disabledBorder:     const OutlineInputBorder(borderSide: BorderSide.none),
+                filled: false,
                 counterText: '',
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 13,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                 suffixIcon: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: widget.isValid
                       ? const Padding(
                     key: ValueKey('check'),
                     padding: EdgeInsets.all(14),
-                    child: Icon(
-                      Icons.check_circle_rounded,
-                      color: AppTheme.success,
-                      size: 22,
-                    ),
+                    child: Icon(Icons.check_circle_rounded, color: AppTheme.success, size: 22),
                   )
                       : const SizedBox.shrink(key: ValueKey('empty')),
                 ),
@@ -1043,68 +946,40 @@ class _GuestSheet extends StatelessWidget {
           const HandleBar(),
           const SizedBox(height: 22),
           Container(
-            width: 62,
-            height: 62,
+            width: 62, height: 62,
             decoration: BoxDecoration(
               gradient: AppTheme.brandGradient,
               borderRadius: BorderRadius.circular(20),
               boxShadow: AppTheme.primaryGlow,
             ),
-            child: const Icon(
-              Icons.explore_rounded,
-              color: Colors.white,
-              size: 28,
-            ),
+            child: const Icon(Icons.explore_rounded, color: Colors.white, size: 28),
           ),
           const SizedBox(height: 14),
-          const Text(
-            'Guest Mode',
-            style: TextStyle(
-              fontFamily: 'Cormorant Garamond',
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.brandDark,
-            ),
-          ),
+          const Text('Guest Mode', style: TextStyle(
+            fontFamily: 'Cormorant Garamond', fontSize: 28,
+            fontWeight: FontWeight.w700, color: AppTheme.brandDark,
+          )),
           const SizedBox(height: 6),
           Text(
             'Explore without signing up —\nbut some features will be limited.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              color: Colors.grey.shade500,
-              height: 1.5,
+              fontFamily: 'Poppins', fontSize: 13,
+              color: Colors.grey.shade500, height: 1.5,
             ),
           ),
           const SizedBox(height: 20),
-          const _FeatureRow(
-            icon: Icons.check_circle_rounded,
-            color: AppTheme.success,
-            text: 'View the first 3 profiles in full',
-            ok: true,
-          ),
+          const _FeatureRow(icon: Icons.check_circle_rounded, color: AppTheme.success,
+              text: 'View the first 3 profiles in full', ok: true),
           const SizedBox(height: 10),
-          const _FeatureRow(
-            icon: Icons.check_circle_rounded,
-            color: AppTheme.success,
-            text: 'Browse Home and Matches screens',
-            ok: true,
-          ),
+          const _FeatureRow(icon: Icons.check_circle_rounded, color: AppTheme.success,
+              text: 'Browse Home and Matches screens', ok: true),
           const SizedBox(height: 10),
-          const _FeatureRow(
-            icon: Icons.lock_rounded,
-            color: Color(0xFFBDBDBD),
-            text: 'Send interests or start a chat',
-            ok: false,
-          ),
+          const _FeatureRow(icon: Icons.lock_rounded, color: Color(0xFFBDBDBD),
+              text: 'Send interests or start a chat', ok: false),
           const SizedBox(height: 10),
-          const _FeatureRow(
-            icon: Icons.lock_rounded,
-            color: Color(0xFFBDBDBD),
-            text: 'Login required after the 4th profile',
-            ok: false,
-          ),
+          const _FeatureRow(icon: Icons.lock_rounded, color: Color(0xFFBDBDBD),
+              text: 'Login required after the 4th profile', ok: false),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -1116,46 +991,38 @@ class _GuestSheet extends StatelessWidget {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius:
-                  BorderRadius.circular(AuthConstants.buttonRadius),
+                  borderRadius: BorderRadius.circular(AuthConstants.buttonRadius),
                 ),
               ),
-              child: const Text(
-                'Explore — 3 profiles free',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              child: const Text('Explore — 3 profiles free', style: TextStyle(
+                fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.w700,
+              )),
             ),
           ),
           const SizedBox(height: 12),
-          GestureDetector(
-            onTap: onLogin,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Want to sign in instead? ',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
+          // ── FIX 6: Material + InkWell — ripple + bigger tap area ─
+          Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            child: InkWell(
+              onTap: onLogin,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text("Want to sign in instead? ", style: TextStyle(
+                      fontFamily: 'Poppins', fontSize: 13,
                       color: Colors.grey.shade500,
-                    ),
-                  ),
-                  const Text(
-                    'Enter number',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.brandPrimary,
-                    ),
-                  ),
-                ],
+                    )),
+                    const Text('Enter number', style: TextStyle(
+                      fontFamily: 'Poppins', fontSize: 13,
+                      fontWeight: FontWeight.w700, color: AppTheme.brandPrimary,
+                    )),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1166,12 +1033,7 @@ class _GuestSheet extends StatelessWidget {
 }
 
 class _FeatureRow extends StatelessWidget {
-  const _FeatureRow({
-    required this.icon,
-    required this.color,
-    required this.text,
-    required this.ok,
-  });
+  const _FeatureRow({required this.icon, required this.color, required this.text, required this.ok});
   final IconData icon;
   final Color color;
   final String text;
@@ -1184,15 +1046,10 @@ class _FeatureRow extends StatelessWidget {
         Icon(icon, color: color, size: 18),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: ok ? AppTheme.brandDark : const Color(0xFFBDBDBD),
-            ),
-          ),
+          child: Text(text, style: TextStyle(
+            fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w500,
+            color: ok ? AppTheme.brandDark : const Color(0xFFBDBDBD),
+          )),
         ),
       ],
     );
