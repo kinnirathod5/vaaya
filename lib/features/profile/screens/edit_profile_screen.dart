@@ -259,20 +259,26 @@ class _EditProfileScreenState extends State<EditProfileScreen>
       child: Row(
         children: [
           // Back
-          GestureDetector(
-            onTap: () {
-              HapticUtils.lightImpact();
-              _hasChanges ? _showDiscardDialog() : context.pop();
-            },
-            child: Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: Colors.white, shape: BoxShape.circle,
-                border: Border.all(color: Colors.grey.shade200),
-                boxShadow: AppTheme.softShadow,
+          Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            elevation: 0,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () {
+                HapticUtils.lightImpact();
+                _hasChanges ? _showDiscardDialog() : context.pop();
+              },
+              child: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey.shade200),
+                  boxShadow: AppTheme.softShadow,
+                ),
+                child: const Icon(Icons.arrow_back_ios_new_rounded,
+                    color: AppTheme.brandDark, size: 16),
               ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded,
-                  color: AppTheme.brandDark, size: 16),
             ),
           ),
           const SizedBox(width: 14),
@@ -357,11 +363,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                   border: Border.all(
                     color: active ? AppTheme.brandPrimary : Colors.grey.shade200,
                   ),
-                  boxShadow: active
-                      ? [BoxShadow(
-                      color: AppTheme.brandPrimary.withValues(alpha: 0.28),
-                      blurRadius: 12, offset: const Offset(0, 4))]
-                      : AppTheme.softShadow,
+                  boxShadow: active ? AppTheme.primaryGlow : AppTheme.softShadow,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

@@ -98,26 +98,32 @@ class _BackButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: GestureDetector(
-        onTap: () {
-          HapticUtils.lightImpact();
-          if (onTap != null) {
-            onTap!();
-          } else if (context.canPop()) {
-            context.pop();
-          }
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.grey.shade200),
-            boxShadow: AppTheme.softShadow,
-          ),
-          child: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: AppTheme.brandDark,
-            size: 16,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        elevation: 0,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () {
+            HapticUtils.lightImpact();
+            if (onTap != null) {
+              onTap!();
+            } else if (context.canPop()) {
+              context.pop();
+            }
+          },
+          child: Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: AppTheme.softShadow,
+            ),
+            child: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: AppTheme.brandDark,
+              size: 16,
+            ),
           ),
         ),
       ),

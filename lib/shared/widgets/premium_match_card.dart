@@ -189,7 +189,7 @@ class _PremiumMatchCardState extends State<PremiumMatchCard>
                           color: Colors.black.withValues(alpha: 0.35),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: const Color(0xFF4ADE80)
+                            color: AppTheme.onlineDot
                                 .withValues(alpha: 0.50),
                           ),
                         ),
@@ -199,7 +199,7 @@ class _PremiumMatchCardState extends State<PremiumMatchCard>
                             Container(
                               width: 6, height: 6,
                               decoration: const BoxDecoration(
-                                color: Color(0xFF4ADE80),
+                                color: AppTheme.onlineDot,
                                 shape: BoxShape.circle,
                               ),
                             ),

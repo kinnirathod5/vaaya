@@ -313,7 +313,7 @@ class _MatchesScreenState extends State<MatchesScreen>
   // ══════════════════════════════════════════════════════════
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 16, 0),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -377,7 +377,7 @@ class _MatchesScreenState extends State<MatchesScreen>
       ) {
     return GridView.builder(
       controller: _scrollCtrl,
-      padding: EdgeInsets.fromLTRB(16, 4, 16, 88 + bottomPad),
+      padding: EdgeInsets.fromLTRB(20, 4, 20, 88 + bottomPad),
       physics: const BouncingScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount:  2,
@@ -465,23 +465,28 @@ class _IconBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        width: 42, height: 42,
-        decoration: BoxDecoration(
-          color: isActive ? AppTheme.brandPrimary : Colors.white,
-          borderRadius: BorderRadius.circular(13),
-          boxShadow: isActive ? AppTheme.primaryGlow : AppTheme.softShadow,
-          border: Border.all(
-            color: isActive ? AppTheme.brandPrimary : Colors.grey.shade200,
-          ),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      width: 44, height: 44,
+      decoration: BoxDecoration(
+        color: isActive ? AppTheme.brandPrimary : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: isActive ? AppTheme.primaryGlow : AppTheme.softShadow,
+        border: Border.all(
+          color: isActive ? AppTheme.brandPrimary : Colors.grey.shade200,
         ),
-        child: Icon(
-          icon,
-          size: 19,
-          color: isActive ? Colors.white : AppTheme.brandDark,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Icon(
+            icon,
+            size: 20,
+            color: isActive ? Colors.white : AppTheme.brandDark,
+          ),
         ),
       ),
     );

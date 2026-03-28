@@ -182,14 +182,14 @@ class _MyProfileScreenState extends State<MyProfileScreen>
         items: [
           _MenuItemData(
             icon: Icons.edit_outlined,
-            iconColor: const Color(0xFF6366F1),
+            iconColor: AppTheme.accentPurple,
             label: 'Edit Profile',
             subtitle: 'Update your personal details',
             route: '/edit_profile',
           ),
           _MenuItemData(
             icon: Icons.photo_library_outlined,
-            iconColor: const Color(0xFFF97316),
+            iconColor: AppTheme.accentOrange,
             label: 'Manage Photos',
             subtitle: 'Add, reorder or delete photos',
             route: '/edit_profile',
@@ -197,7 +197,7 @@ class _MyProfileScreenState extends State<MyProfileScreen>
           ),
           _MenuItemData(
             icon: Icons.verified_outlined,
-            iconColor: const Color(0xFF10B981),
+            iconColor: AppTheme.accentGreen,
             label: 'Verify Profile',
             subtitle: 'Get the blue badge',
             route: null,
@@ -207,11 +207,11 @@ class _MyProfileScreenState extends State<MyProfileScreen>
       _MenuGroupData(
         title: 'Activity',             // was: 'ACTIVITY'
         icon: Icons.insights_rounded,
-        iconColor: const Color(0xFF8B5CF6),
+        iconColor: AppTheme.accentViolet,
         items: [
           _MenuItemData(
             icon: Icons.visibility_outlined,
-            iconColor: const Color(0xFF8B5CF6),
+            iconColor: AppTheme.accentViolet,
             label: 'Who Viewed Me',
             subtitle: '${_dummyStats.profileViews} views this week',
             route: '/premium',
@@ -236,18 +236,18 @@ class _MyProfileScreenState extends State<MyProfileScreen>
       _MenuGroupData(
         title: 'More',                 // was: 'MORE'
         icon: Icons.grid_view_rounded,
-        iconColor: const Color(0xFF0EA5E9),
+        iconColor: AppTheme.accentBlue,
         items: [
           _MenuItemData(
             icon: Icons.headset_mic_outlined,
-            iconColor: const Color(0xFF0EA5E9),
+            iconColor: AppTheme.accentBlue,
             label: 'Help & Support',
             subtitle: 'FAQs & contact our team',
             route: null,
           ),
           _MenuItemData(
             icon: Icons.share_outlined,
-            iconColor: const Color(0xFF10B981),
+            iconColor: AppTheme.accentGreen,
             label: 'Invite Friends',
             subtitle: 'Share the app with family',
             route: null,
@@ -432,7 +432,7 @@ class _MyProfileScreenState extends State<MyProfileScreen>
                 'My Profile',
                 style: TextStyle(
                   fontFamily: 'Cormorant Garamond',
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.brandDark,
                   letterSpacing: -0.4,
@@ -465,7 +465,7 @@ class _MyProfileScreenState extends State<MyProfileScreen>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
         boxShadow: AppTheme.softShadow,
         border: Border.all(color: Colors.grey.shade100),
       ),
@@ -621,10 +621,10 @@ class _MyProfileScreenState extends State<MyProfileScreen>
                     transform:
                     GradientRotation(_shimmerCtrl!.value * 2 * 3.14159),
                     colors: const [
-                      Color(0xFFFFD700),
+                      AppTheme.goldLight,
                       Color(0xFFC9962A),
                       Color(0xFFF5C842),
-                      Color(0xFFFFD700),
+                      AppTheme.goldLight,
                     ],
                   ),
                 ),
@@ -728,7 +728,7 @@ class _MyProfileScreenState extends State<MyProfileScreen>
           ),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: const Color(0xFFFFD700).withValues(alpha: 0.35),
+            color: AppTheme.goldLight.withValues(alpha: 0.35),
           ),
           boxShadow: [
             BoxShadow(
@@ -744,14 +744,14 @@ class _MyProfileScreenState extends State<MyProfileScreen>
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFD700).withValues(alpha: 0.12),
+                color: AppTheme.goldLight.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: const Color(0xFFFFD700).withValues(alpha: 0.25),
+                  color: AppTheme.goldLight.withValues(alpha: 0.25),
                 ),
               ),
               child: const Icon(Icons.diamond_rounded,
-                  color: Color(0xFFFFD700), size: 22),
+                  color: AppTheme.goldLight, size: 22),
             ),
             const SizedBox(width: 14),
             const Expanded(
@@ -774,7 +774,7 @@ class _MyProfileScreenState extends State<MyProfileScreen>
                       fontFamily: 'Poppins',
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFFFFD700),
+                      color: AppTheme.goldLight,
                       letterSpacing: 0.6,
                     ),
                   ),
@@ -786,13 +786,13 @@ class _MyProfileScreenState extends State<MyProfileScreen>
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFD700).withValues(alpha: 0.15),
+                color: AppTheme.goldLight.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 13,
-                color: const Color(0xFFFFD700).withValues(alpha: 0.80),
+                color: AppTheme.goldLight.withValues(alpha: 0.80),
               ),
             ),
           ],
@@ -812,7 +812,7 @@ class _MyProfileScreenState extends State<MyProfileScreen>
         icon: Icons.visibility_outlined,
         value: '${_stats.profileViews}',
         label: 'Views',
-        color: const Color(0xFF8B5CF6),
+        color: AppTheme.accentViolet,
         route: '/premium',
       ),
       _StatItem(
@@ -833,7 +833,7 @@ class _MyProfileScreenState extends State<MyProfileScreen>
         icon: Icons.handshake_outlined,
         value: '${_stats.matches}',
         label: 'Matches',
-        color: const Color(0xFF10B981),
+        color: AppTheme.accentGreen,
         route: '/dashboard',
       ),
     ];
@@ -1230,7 +1230,7 @@ class _AmbientGlow extends StatelessWidget {
             height: 200,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF8B5CF6).withValues(alpha: 0.04),
+              color: AppTheme.accentViolet.withValues(alpha: 0.04),
             ),
           ),
         ),
@@ -1289,7 +1289,7 @@ class _VerifiedBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: const Color(0xFF0EA5E9).withValues(alpha: 0.10),
+          color: AppTheme.accentBlue.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(6),
         ),
         child: const Row(
@@ -1468,7 +1468,7 @@ class _MenuTile extends StatelessWidget {
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFFFFD700), Color(0xFFC9962A)],
+                          colors: [AppTheme.goldLight, Color(0xFFC9962A)],
                         ),
                         borderRadius: BorderRadius.circular(8),
                       ),

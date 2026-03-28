@@ -148,7 +148,7 @@ class _InterestsScreenState extends State<InterestsScreen>
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           decoration: BoxDecoration(
             gradient: AppTheme.brandGradient,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             boxShadow: AppTheme.primaryGlow,
           ),
           child: const Row(
@@ -253,7 +253,7 @@ class _InterestsScreenState extends State<InterestsScreen>
                         text: 'Interests',
                         style: TextStyle(
                           fontFamily: 'Cormorant Garamond',
-                          fontSize: 34,
+                          fontSize: 32,
                           fontWeight: FontWeight.w700,
                           color: AppTheme.brandDark,
                           letterSpacing: -0.5,
@@ -264,7 +264,7 @@ class _InterestsScreenState extends State<InterestsScreen>
                         text: ' & Requests',
                         style: TextStyle(
                           fontFamily: 'Cormorant Garamond',
-                          fontSize: 34,
+                          fontSize: 32,
                           fontWeight: FontWeight.w700,
                           color: AppTheme.brandPrimary,
                           letterSpacing: -0.5,
@@ -319,7 +319,7 @@ class _InterestsScreenState extends State<InterestsScreen>
                     Positioned(
                       top: 8, right: 8,
                       child: Container(
-                        width: 9, height: 9,
+                        width: 10, height: 10,
                         decoration: BoxDecoration(
                           color: AppTheme.brandPrimary,
                           shape: BoxShape.circle,
@@ -1360,7 +1360,7 @@ class _OnlineBadge extends StatelessWidget {
               Container(
                 width: 6, height: 6,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF4ADE80),
+                  color: AppTheme.onlineDot,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -1371,7 +1371,7 @@ class _OnlineBadge extends StatelessWidget {
                   fontFamily: 'Poppins',
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF4ADE80),
+                  color: AppTheme.onlineDot,
                 ),
               ),
             ],

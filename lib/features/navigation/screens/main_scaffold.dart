@@ -253,7 +253,7 @@ class _NavItem extends StatelessWidget {
                           minHeight: 16,
                         ),
                         child: Text(
-                          badge > 9 ? '9+' : '$badge',
+                          badge > 99 ? '99+' : '$badge',
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontFamily: 'Poppins',
@@ -331,21 +331,21 @@ class _PremiumNavItem extends StatelessWidget {
             )
                 : LinearGradient(
               colors: [
-                const Color(0xFFFFDF00).withValues(alpha: 0.28),
-                const Color(0xFFD4AF37).withValues(alpha: 0.18),
+                AppTheme.goldLight.withValues(alpha: 0.28),
+                AppTheme.goldPrimary.withValues(alpha: 0.18),
               ],
             ),
             border: Border.all(
               color: isSelected
-                  ? const Color(0xFFFFD700).withValues(alpha: 0.55)
-                  : const Color(0xFFD4AF37).withValues(alpha: 0.35),
+                  ? AppTheme.goldLight.withValues(alpha: 0.55)
+                  : AppTheme.goldPrimary.withValues(alpha: 0.35),
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
                 color: isSelected
                     ? Colors.black.withValues(alpha: 0.20)
-                    : const Color(0xFFFFD700).withValues(alpha: 0.18),
+                    : AppTheme.goldLight.withValues(alpha: 0.18),
                 blurRadius: isSelected ? 10 : 14,
                 spreadRadius: isSelected ? 0 : 1,
                 offset: const Offset(0, 3),
@@ -356,8 +356,8 @@ class _PremiumNavItem extends StatelessWidget {
             Icons.diamond_rounded,
             size: 20,
             color: isSelected
-                ? const Color(0xFFFFD700)
-                : const Color(0xFFB8860B),
+                ? AppTheme.goldLight
+                : AppTheme.goldPrimary,
           ),
         ),
       ),

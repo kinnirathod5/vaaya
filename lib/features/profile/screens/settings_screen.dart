@@ -120,28 +120,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: _SettingsGroup(
                       title: 'Account',           // was: 'ACCOUNT'
                       icon: Icons.person_outline_rounded,
-                      iconColor: const Color(0xFF6366F1),
+                      iconColor: AppTheme.accentPurple,
                       children: [
                         _NavTile(
                           icon: Icons.edit_outlined,
-                          iconColor: const Color(0xFF6366F1),
+                          iconColor: AppTheme.accentPurple,
                           label: 'Edit Profile',
                           onTap: () => context.push('/edit_profile'),
                         ),
                         _NavTile(
                           icon: Icons.phone_outlined,
-                          iconColor: const Color(0xFF10B981),
+                          iconColor: AppTheme.accentGreen,
                           label: 'Change Phone Number',
                           value: _user.phone,        // FIX 5: .phone not ['phone']
                           onTap: () => _showComingSoon(context),
                         ),
                         _NavTile(
                           icon: Icons.diamond_outlined,
-                          iconColor: const Color(0xFFC9962A),
+                          iconColor: AppTheme.goldPrimary,
                           label: 'Subscription & Billing',
                           value: _user.isPremium ? 'Premium' : 'Free Plan',
                           valueColor: _user.isPremium
-                              ? const Color(0xFFC9962A)
+                              ? AppTheme.goldPrimary
                               : Colors.grey.shade400,
                           onTap: () => context.push('/premium'),
                         ),
@@ -162,11 +162,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: _SettingsGroup(
                       title: 'Privacy',            // was: 'PRIVACY'
                       icon: Icons.lock_outline_rounded,
-                      iconColor: const Color(0xFF0EA5E9),
+                      iconColor: AppTheme.accentBlue,
                       children: [
                         _ToggleTile(
                           icon: Icons.visibility_outlined,
-                          iconColor: const Color(0xFF0EA5E9),
+                          iconColor: AppTheme.accentBlue,
                           label: 'Show online status',
                           subtitle: 'Others can see when you\'re active',
                           value: _showOnlineStatus,
@@ -177,7 +177,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         _ToggleTile(
                           icon: Icons.access_time_rounded,
-                          iconColor: const Color(0xFF0EA5E9),
+                          iconColor: AppTheme.accentBlue,
                           label: 'Show last seen',
                           subtitle: 'Others can see your last active time',
                           value: _showLastSeen,
@@ -188,7 +188,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         _ToggleTile(
                           icon: Icons.person_search_outlined,
-                          iconColor: const Color(0xFF0EA5E9),
+                          iconColor: AppTheme.accentBlue,
                           label: 'Profile visible in search',
                           subtitle: 'Your profile appears in discovery',
                           value: _profileVisible,
@@ -199,7 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         _ToggleTile(
                           icon: Icons.security_rounded,
-                          iconColor: const Color(0xFF0EA5E9),
+                          iconColor: AppTheme.accentBlue,
                           label: 'Two-factor authentication',
                           subtitle: 'Extra security for your account',
                           value: _twoFactorAuth,
@@ -310,12 +310,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: _SettingsGroup(
                       title: 'App',               // was: 'APP'
                       icon: Icons.phone_iphone_rounded,
-                      iconColor: const Color(0xFF8B5CF6),
+                      iconColor: AppTheme.accentViolet,
                       children: [
                         // ── FIX 7: Dark mode → coming soon, don't store state ──
                         _NavTile(
                           icon: Icons.dark_mode_outlined,
-                          iconColor: const Color(0xFF8B5CF6),
+                          iconColor: AppTheme.accentViolet,
                           label: 'Dark mode',
                           value: 'Coming soon',
                           valueColor: Colors.grey.shade400,
@@ -324,14 +324,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         _NavTile(
                           icon: Icons.language_rounded,
-                          iconColor: const Color(0xFF8B5CF6),
+                          iconColor: AppTheme.accentViolet,
                           label: 'Language',
                           value: 'English',
                           onTap: () => _showComingSoon(context),
                         ),
                         _NavTile(
                           icon: Icons.cleaning_services_outlined,
-                          iconColor: const Color(0xFF8B5CF6),
+                          iconColor: AppTheme.accentViolet,
                           label: 'Clear cache',
                           subtitle: 'Free up storage space',
                           onTap: () => _showClearCacheDialog(context),
@@ -355,38 +355,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: _SettingsGroup(
                       title: 'Support',           // was: 'SUPPORT'
                       icon: Icons.help_outline_rounded,
-                      iconColor: const Color(0xFF10B981),
+                      iconColor: AppTheme.accentGreen,
                       children: [
                         _NavTile(
                           icon: Icons.help_center_outlined,
-                          iconColor: const Color(0xFF10B981),
+                          iconColor: AppTheme.accentGreen,
                           label: 'Help center',
                           subtitle: 'FAQs and guides',
                           onTap: () => _showComingSoon(context),
                         ),
                         _NavTile(
                           icon: Icons.headset_mic_outlined,
-                          iconColor: const Color(0xFF10B981),
+                          iconColor: AppTheme.accentGreen,
                           label: 'Contact us',
                           subtitle: 'Talk to our support team',
                           onTap: () => _showComingSoon(context),
                         ),
                         _NavTile(
                           icon: Icons.star_outline_rounded,
-                          iconColor: const Color(0xFFFFD700),
+                          iconColor: AppTheme.goldLight,
                           label: 'Rate the app',
                           subtitle: 'Tell us what you think',
                           onTap: () => _showComingSoon(context),
                         ),
                         _NavTile(
                           icon: Icons.privacy_tip_outlined,
-                          iconColor: const Color(0xFF10B981),
+                          iconColor: AppTheme.accentGreen,
                           label: 'Privacy policy',
                           onTap: () => _showComingSoon(context),
                         ),
                         _NavTile(
                           icon: Icons.description_outlined,
-                          iconColor: const Color(0xFF10B981),
+                          iconColor: AppTheme.accentGreen,
                           label: 'Terms of service',
                           onTap: () => _showComingSoon(context),
                         ),
@@ -487,7 +487,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Settings',
                   style: TextStyle(
                     fontFamily: 'Cormorant Garamond',
-                    fontSize: 30,
+                    fontSize: 26,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.brandDark,
                     letterSpacing: -0.5,
@@ -576,7 +576,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: _user.isPremium
-                                ? const Color(0xFFFFD700).withValues(alpha: 0.40)
+                                ? AppTheme.goldLight.withValues(alpha: 0.40)
                                 : Colors.grey.shade200,
                           ),
                         ),
@@ -587,7 +587,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontSize: 9,
                             fontWeight: FontWeight.w800,
                             color: _user.isPremium
-                                ? const Color(0xFFC9962A)
+                                ? AppTheme.goldPrimary
                                 : Colors.grey.shade500,
                           ),
                         ),
@@ -769,12 +769,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (_) => _ConfirmDialog(
         icon: Icons.cleaning_services_outlined,
-        iconColor: const Color(0xFF8B5CF6),
+        iconColor: AppTheme.accentViolet,
         title: 'Clear cache?',
         body:
         'This will clear temporary files and images. Your data will not be affected.',
         confirmLabel: 'Clear now',
-        confirmColor: const Color(0xFF8B5CF6),
+        confirmColor: AppTheme.accentViolet,
         onConfirm: () {
           Navigator.pop(context);
           HapticUtils.mediumImpact();
@@ -791,7 +791,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           fontWeight: FontWeight.w600)),
                 ],
               ),
-              backgroundColor: const Color(0xFF8B5CF6),
+              backgroundColor: AppTheme.accentViolet,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14)),

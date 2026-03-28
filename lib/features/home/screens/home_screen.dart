@@ -208,7 +208,7 @@ const _thoughts = [
   ),
   (
   quote: 'Gotra se pehchaan, dil se rishta,\naur Vaaya se milaan.',
-  author: 'Vaaya Vivah',
+  author: 'Banjara Vivah',
   emoji: '🏡',
   ),
 ];
@@ -549,7 +549,7 @@ class _HomeScreenState extends State<HomeScreen>
       delayInMs: delay,
       child: _AccentSectionLabel(
         title: 'Success Stories',
-        subtitle: 'Couples who found love on Vaaya',
+        subtitle: 'Couples who found love on Banjara Vivah',
         icon: Icons.favorite_rounded,
       ),
     ),
@@ -1991,18 +1991,17 @@ class _HeaderBtn extends StatelessWidget {
       label: label,
       child: Material(
         color: Colors.white,
-        shape: const CircleBorder(),
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          // ── FIX 3: proper ripple ─────────────────────────
           onTap: onTap,
-          customBorder: const CircleBorder(),
+          borderRadius: BorderRadius.circular(14),
           child: Stack(
             clipBehavior: Clip.none,
             children: [
               Container(
                 width: size, height: size,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: Colors.grey.shade200),
                   boxShadow: AppTheme.softShadow,
                 ),
@@ -2023,7 +2022,7 @@ class _HeaderBtn extends StatelessWidget {
                     ),
                     child: Center(
                       child: Text(
-                        badge > 9 ? '9+' : '$badge',
+                        badge > 99 ? '99+' : '$badge',
                         style: const TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 9,
@@ -2483,7 +2482,7 @@ class _DailyMatchCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: match.isOnline
-                          ? const Color(0xFF4ADE80)
+                          ? AppTheme.onlineDot
                           .withValues(alpha: 0.60)
                           : Colors.white.withValues(alpha: 0.20),
                     ),
@@ -2495,7 +2494,7 @@ class _DailyMatchCard extends StatelessWidget {
                         width: 5, height: 5,
                         decoration: BoxDecoration(
                           color: match.isOnline
-                              ? const Color(0xFF4ADE80)
+                              ? AppTheme.onlineDot
                               : Colors.grey.shade400,
                           shape: BoxShape.circle,
                         ),
@@ -2510,7 +2509,7 @@ class _DailyMatchCard extends StatelessWidget {
                           fontSize: 9,
                           fontWeight: FontWeight.w600,
                           color: match.isOnline
-                              ? const Color(0xFF4ADE80)
+                              ? AppTheme.onlineDot
                               : Colors.white.withValues(alpha: 0.70),
                         ),
                       ),

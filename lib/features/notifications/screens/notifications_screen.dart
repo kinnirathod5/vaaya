@@ -242,23 +242,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // Back
-          GestureDetector(
-            onTap: () {
-              HapticUtils.lightImpact();
-              context.pop();
-            },
-            child: Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.grey.shade200),
-                boxShadow: AppTheme.softShadow,
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: AppTheme.brandDark,
-                size: 16,
+          Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            elevation: 0,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () {
+                HapticUtils.lightImpact();
+                context.pop();
+              },
+              child: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey.shade200),
+                  boxShadow: AppTheme.softShadow,
+                ),
+                child: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: AppTheme.brandDark,
+                  size: 16,
+                ),
               ),
             ),
           ),
@@ -275,7 +280,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       'Notifications',
                       style: TextStyle(
                         fontFamily: 'Cormorant Garamond',
-                        fontSize: 30,
+                        fontSize: 26,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.brandDark,
                         letterSpacing: -0.5,

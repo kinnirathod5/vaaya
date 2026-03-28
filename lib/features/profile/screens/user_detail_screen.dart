@@ -158,8 +158,8 @@ class _UserDetailScreenState extends State<UserDetailScreen>
               SliverToBoxAdapter(
                 child: Container(
                   decoration: const BoxDecoration(
-                    color: Color(0xFFFAF8F9),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                    color: AppTheme.bgScaffold,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.cardRadius)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,7 +168,7 @@ class _UserDetailScreenState extends State<UserDetailScreen>
                       const SizedBox(height: 10),
                       Center(
                         child: Container(
-                          width: 36, height: 4,
+                          width: 40, height: 4,
                           decoration: BoxDecoration(
                             color: Colors.grey.shade300,
                             borderRadius: BorderRadius.circular(4),
@@ -323,7 +323,7 @@ class _UserDetailScreenState extends State<UserDetailScreen>
                     Container(
                       width: 7, height: 7,
                       decoration: const BoxDecoration(
-                        color: Color(0xFF4ADE80), shape: BoxShape.circle,
+                        color: AppTheme.onlineDot, shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 5),
@@ -369,7 +369,7 @@ class _UserDetailScreenState extends State<UserDetailScreen>
   Widget _buildTopButtons() {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -1097,14 +1097,14 @@ class _MoreOptionsSheet extends StatelessWidget {
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(AppTheme.sheetRadius),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 12),
           Container(
-            width: 36, height: 4,
+            width: 40, height: 4,
             decoration: BoxDecoration(
               color: Colors.grey.shade300,
               borderRadius: BorderRadius.circular(4),

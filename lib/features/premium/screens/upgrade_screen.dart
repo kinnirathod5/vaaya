@@ -252,26 +252,31 @@ class _UpgradeScreenState extends State<UpgradeScreen>
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 20, 0),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
         child: Row(
           children: [
 
             // Back button
-            GestureDetector(
-              onTap: () { HapticUtils.lightImpact(); context.pop(); },
-              child: Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.12),
+            Material(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+              elevation: 0,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () { HapticUtils.lightImpact(); context.pop(); },
+                child: Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.12),
+                    ),
                   ),
-                ),
-                child: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: Colors.white,
-                  size: 17,
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                 ),
               ),
             ),
@@ -295,7 +300,7 @@ class _UpgradeScreenState extends State<UpgradeScreen>
                   Container(
                     width: 7, height: 7,
                     decoration: const BoxDecoration(
-                      color: Color(0xFF4ADE80),
+                      color: AppTheme.onlineDot,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -387,7 +392,7 @@ class _UpgradeScreenState extends State<UpgradeScreen>
               'Elite Membership',
               style: TextStyle(
                 fontFamily: 'Cormorant Garamond',
-                fontSize: 38,
+                fontSize: 32,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
                 letterSpacing: -0.5,
@@ -607,7 +612,7 @@ class _UpgradeScreenState extends State<UpgradeScreen>
                           fontFamily: 'Poppins',
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF4ADE80),
+                          color: AppTheme.onlineDot,
                         ),
                       ),
                     ),
@@ -921,7 +926,7 @@ class _PlanCard extends StatelessWidget {
                         fontFamily: 'Poppins',
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF4ADE80),
+                        color: AppTheme.onlineDot,
                       ),
                     ),
                   )
