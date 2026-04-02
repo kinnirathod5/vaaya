@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(flutter analyze:*)"
+      "Bash(flutter analyze:*)",
+      "Bash(node:*)",
+      "Bash(dart analyze:*)",
+      "Bash(grep -n \"^\\\\s*\\\\],\\\\s*$\\\\|^\\\\s*\\\\\\),\\\\s*$\\\\|^\\\\s*}\\\\s*$\" \"C:/Users/vilas/AndroidStudioProjects/vaaya/lib/features/profile/screens/settings_screen.dart\")"
     ]
   }
 }

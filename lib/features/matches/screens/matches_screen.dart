@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/haptic_utils.dart';
 import '../../../../core/constants/app_assets.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/custom_toast.dart';
+import '../../../../core/utils/haptic_utils.dart';
 import '../../../../shared/animations/fade_animation.dart';
-import '../../../../shared/widgets/custom_network_image.dart';
-import '../../../../shared/widgets/guest_lock_widget.dart';
+import '../../../../shared/widgets/custom_chip.dart';
 import '../../../../shared/widgets/empty_state_widget.dart';
+import '../../../../shared/widgets/guest_lock_widget.dart';
+import '../../../../shared/widgets/premium_icon_button.dart';
+import '../../../../shared/widgets/premium_match_card.dart';
+import '../../../../shared/widgets/primary_button.dart';
+import '../../../../shared/widgets/section_header.dart';
+import '../../../../shared/widgets/shimmer_loading_grid.dart';
 
 // ============================================================
 // 🔍 MATCHES SCREEN — v2.0 Full Rewrite (All Widgets Inlined)
@@ -105,7 +111,8 @@ class _MatchesScreenState extends State<MatchesScreen>
   final _searchCtrl  = TextEditingController();
   final _searchFocus = FocusNode();
 
-  bool   _searchOpen   = false;
+  bool   _searchOpen       = false;
+  bool   _isInitialLoading = true;
   String _searchQuery  = '';
   String _activeFilter = 'All';
 
@@ -149,6 +156,9 @@ class _MatchesScreenState extends State<MatchesScreen>
       vsync: this,
       duration: const Duration(milliseconds: 280),
     );
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) setState(() => _isInitialLoading = false);
+    });
     _searchExpand = CurvedAnimation(
       parent: _searchAnim,
       curve: Curves.easeOutCubic,
@@ -169,7 +179,6 @@ class _MatchesScreenState extends State<MatchesScreen>
   }
 
   void _toggleSearch() {
-    HapticUtils.lightImpact();
     setState(() => _searchOpen = !_searchOpen);
     if (_searchOpen) {
       _searchAnim.forward();
@@ -184,7 +193,6 @@ class _MatchesScreenState extends State<MatchesScreen>
   }
 
   void _openFilterSheet() {
-    HapticUtils.mediumImpact();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -348,19 +356,19 @@ class _MatchesScreenState extends State<MatchesScreen>
           const SizedBox(width: 8),
 
           // Search toggle
-          _IconBtn(
-            icon: _searchOpen
-                ? Icons.close_rounded
-                : Icons.search_rounded,
-            isActive: _searchOpen,
+          PremiumIconButton(
+            icon: _searchOpen ? Icons.close_rounded : Icons.search_rounded,
+            backgroundColor: _searchOpen ? AppTheme.brandPrimary : Colors.white,
+            iconColor: _searchOpen ? Colors.white : AppTheme.brandDark,
+            shape: ButtonShape.rounded,
             onTap: _toggleSearch,
           ),
           const SizedBox(width: 8),
 
           // Filter
-          _IconBtn(
+          PremiumIconButton(
             icon: Icons.tune_rounded,
-            isActive: false,
+            shape: ButtonShape.rounded,
             onTap: _openFilterSheet,
           ),
         ],
@@ -375,6 +383,15 @@ class _MatchesScreenState extends State<MatchesScreen>
       List<Map<String, dynamic>> matches,
       double bottomPad,
       ) {
+    if (_isInitialLoading) {
+      return ShimmerLoadingGrid(
+        itemCount: 6,
+        crossAxisCount: 2,
+        childAspectRatio: 0.66,
+        padding: EdgeInsets.fromLTRB(20, 4, 20, 88 + bottomPad),
+      );
+    }
+
     return GridView.builder(
       controller: _scrollCtrl,
       padding: EdgeInsets.fromLTRB(20, 4, 20, 88 + bottomPad),
@@ -390,27 +407,30 @@ class _MatchesScreenState extends State<MatchesScreen>
         final match    = matches[index];
         final isLocked = _isGuest && index >= _guestFreeLimit;
 
+        final card = PremiumMatchCard(
+          name:       match['name']       as String,
+          age:        match['age']        as int,
+          imageUrl:   match['image']      as String,
+          matchPct:   match['match']      as int,
+          profession: match['profession'] as String,
+          city:       match['city']       as String,
+          isOnline:   match['isOnline']   as bool,
+          isNew:      match['isNew']      as bool,
+          isPremium:  match['isPremium']  as bool,
+          onTap:      () => context.push('/user_detail'),
+          onLike:     () => CustomToast.interestSent(
+            context,
+            (match['name'] as String).split(' ').first,
+          ),
+        );
+
         if (isLocked) {
-          return GuestLockedCard(
-            borderRadius: 20,
-            child: _MatchCard(match: match, onLike: () {}),
-          );
+          return GuestLockedCard(borderRadius: 20, child: card);
         }
 
         return FadeAnimation(
           delayInMs: (index * 50).clamp(0, 400),
-          child: RepaintBoundary(
-            child: GestureDetector(
-              onTap: () {
-                HapticUtils.lightImpact();
-                context.push('/user_detail');
-              },
-              child: _MatchCard(
-                match: match,
-                onLike: () { HapticUtils.heavyImpact(); },
-              ),
-            ),
-          ),
+          child: RepaintBoundary(child: card),
         );
       },
     );
@@ -450,48 +470,6 @@ class _AmbientBackground extends StatelessWidget {
   }
 }
 
-// ══════════════════════════════════════════════════════════════
-// ICON BUTTON (header)
-// ══════════════════════════════════════════════════════════════
-class _IconBtn extends StatelessWidget {
-  const _IconBtn({
-    required this.icon,
-    required this.isActive,
-    required this.onTap,
-  });
-  final IconData icon;
-  final bool     isActive;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      width: 44, height: 44,
-      decoration: BoxDecoration(
-        color: isActive ? AppTheme.brandPrimary : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: isActive ? AppTheme.primaryGlow : AppTheme.softShadow,
-        border: Border.all(
-          color: isActive ? AppTheme.brandPrimary : Colors.grey.shade200,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Icon(
-            icon,
-            size: 20,
-            color: isActive ? Colors.white : AppTheme.brandDark,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ══════════════════════════════════════════════════════════════
 // INLINE SEARCH FIELD
@@ -590,41 +568,12 @@ class _FilterChipsRow extends StatelessWidget {
         itemBuilder: (_, index) {
           final opt        = options[index];
           final isSelected = opt == selected;
-          return GestureDetector(
-            onTap: () => onSelect(opt),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve:    Curves.easeOut,
-              margin:   const EdgeInsets.only(right: 8),
-              padding:  const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-              decoration: BoxDecoration(
-                color: isSelected ? AppTheme.brandPrimary : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: isSelected
-                    ? [
-                  BoxShadow(
-                    color:  AppTheme.brandPrimary.withValues(alpha: 0.28),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-                    : AppTheme.softShadow,
-                border: Border.all(
-                  color: isSelected
-                      ? AppTheme.brandPrimary
-                      : Colors.grey.shade200,
-                  width: 1.5,
-                ),
-              ),
-              child: Text(
-                opt,
-                style: TextStyle(
-                  fontFamily:  'Poppins',
-                  fontSize:    12,
-                  fontWeight:  FontWeight.w700,
-                  color: isSelected ? Colors.white : Colors.grey.shade600,
-                ),
-              ),
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: CustomChip(
+              label:      opt,
+              isSelected: isSelected,
+              onTap:      () => onSelect(opt),
             ),
           );
         },
@@ -679,390 +628,6 @@ class _GuestBadge extends StatelessWidget {
   }
 }
 
-// ══════════════════════════════════════════════════════════════
-// MATCH CARD — arc ring match% + like button
-// ══════════════════════════════════════════════════════════════
-class _MatchCard extends StatefulWidget {
-  const _MatchCard({
-    required this.match,
-    required this.onLike,
-  });
-  final Map<String, dynamic> match;
-  final VoidCallback         onLike;
-
-  @override
-  State<_MatchCard> createState() => _MatchCardState();
-}
-
-class _MatchCardState extends State<_MatchCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _likeCtrl;
-  late final Animation<double>   _likeScale;
-  bool _liked = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _likeCtrl = AnimationController(
-      vsync:           this,
-      duration:        const Duration(milliseconds: 200),
-    );
-    _likeScale = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.32), weight: 1),
-      TweenSequenceItem(tween: Tween(begin: 1.32, end: 1.0), weight: 1),
-    ]).animate(CurvedAnimation(parent: _likeCtrl, curve: Curves.easeOut));
-  }
-
-  @override
-  void dispose() {
-    _likeCtrl.dispose();
-    super.dispose();
-  }
-
-  void _onLike() {
-    setState(() => _liked = !_liked);
-    _likeCtrl.forward(from: 0);
-    widget.onLike();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final m          = widget.match;
-    final bool isOnline  = m['isOnline']  as bool;
-    final bool isPremium = m['isPremium'] as bool;
-    final bool isNew     = m['isNew']     as bool;
-    final int  matchPct  = m['match']     as int;
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color:      Colors.black.withValues(alpha: 0.10),
-            blurRadius: 16,
-            offset:     const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-
-            // ── Photo ────────────────────────────────────
-            CustomNetworkImage(imageUrl: m['image'], borderRadius: 0),
-
-            // ── Bottom gradient ───────────────────────────
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin:  Alignment.topCenter,
-                  end:    Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.85),
-                  ],
-                  stops: const [0.36, 1.0],
-                ),
-              ),
-            ),
-
-            // ── Top gradient (for badge readability) ──────
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin:  Alignment.topCenter,
-                  end:    Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.20),
-                    Colors.transparent,
-                  ],
-                  stops: const [0.0, 0.28],
-                ),
-              ),
-            ),
-
-            // ── Top badges row ────────────────────────────
-            Positioned(
-              top: 10, left: 10, right: 10,
-              child: Row(
-                children: [
-                  // Online pill
-                  if (isOnline)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF16A34A).withValues(alpha: 0.88),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 5, height: 5,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 3),
-                          const Text(
-                            'Online',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const Spacer(),
-
-                  // New badge
-                  if (isNew)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.brandPrimary.withValues(alpha: 0.90),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'New',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-
-                  // Premium diamond
-                  if (isPremium) ...[
-                    if (isNew) const SizedBox(width: 4),
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.goldGradient,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.diamond_rounded,
-                        size: 9,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            // ── Arc match ring (top-left, overlaps photo) ─
-            Positioned(
-              top: 42, left: 10,
-              child: _ArcRing(pct: matchPct, size: 36),
-            ),
-
-            // ── Bottom content ────────────────────────────
-            Positioned(
-              bottom: 0, left: 0, right: 0,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-
-                    // Name + age
-                    Text(
-                      '${m['name']}, ${m['age']}',
-                      style: const TextStyle(
-                        fontFamily:  'Cormorant Garamond',
-                        fontSize:    17,
-                        fontWeight:  FontWeight.w700,
-                        color:       Colors.white,
-                        height:      1.1,
-                        letterSpacing: -0.2,
-                      ),
-                      maxLines:  1,
-                      overflow:  TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-
-                    // City · profession
-                    Text(
-                      '${m['city']} · ${m['profession']}',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize:   10,
-                        color:      Colors.white.withValues(alpha: 0.65),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Match bar + like
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$matchPct% match',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize:   9,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white.withValues(alpha: 0.70),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: LinearProgressIndicator(
-                                  value: matchPct / 100,
-                                  backgroundColor:
-                                  Colors.white.withValues(alpha: 0.18),
-                                  valueColor:
-                                  const AlwaysStoppedAnimation<Color>(
-                                    AppTheme.brandPrimary,
-                                  ),
-                                  minHeight: 3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-
-                        // Like button — spring scale
-                        GestureDetector(
-                          onTap: _onLike,
-                          child: ScaleTransition(
-                            scale: _likeScale,
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 250),
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                gradient: _liked
-                                    ? AppTheme.brandGradient
-                                    : const LinearGradient(
-                                  colors: [
-                                    Color(0x88E8395A),
-                                    Color(0x88FF6B84),
-                                  ],
-                                ),
-                                shape:     BoxShape.circle,
-                                boxShadow: _liked
-                                    ? AppTheme.primaryGlow
-                                    : [],
-                              ),
-                              child: Icon(
-                                _liked
-                                    ? Icons.favorite_rounded
-                                    : Icons.favorite_border_rounded,
-                                color: Colors.white,
-                                size:  16,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-// ARC RING — match percentage
-// ══════════════════════════════════════════════════════════════
-class _ArcRing extends StatelessWidget {
-  const _ArcRing({required this.pct, required this.size});
-  final int    pct;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size, height: size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Background circle
-          Container(
-            width: size, height: size,
-            decoration: BoxDecoration(
-              color:  Colors.black.withValues(alpha: 0.40),
-              shape:  BoxShape.circle,
-            ),
-          ),
-          CustomPaint(
-            size:    Size(size, size),
-            painter: _ArcPainter(pct / 100),
-          ),
-          Text(
-            '$pct',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize:   9,
-              fontWeight: FontWeight.w900,
-              color:      Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ArcPainter extends CustomPainter {
-  _ArcPainter(this.value);
-  final double value;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final c = Offset(size.width / 2, size.height / 2);
-    final r = (size.width - 5) / 2;
-    final bg = Paint()
-      ..color      = Colors.white.withValues(alpha: 0.22)
-      ..strokeWidth = 2.5
-      ..style      = PaintingStyle.stroke
-      ..strokeCap  = StrokeCap.round;
-    final fg = Paint()
-      ..color      = AppTheme.brandPrimary
-      ..strokeWidth = 2.5
-      ..style      = PaintingStyle.stroke
-      ..strokeCap  = StrokeCap.round;
-    final pi = 3.141592653589793;
-    canvas.drawArc(
-      Rect.fromCircle(center: c, radius: r),
-      -pi / 2, 2 * pi, false, bg,
-    );
-    canvas.drawArc(
-      Rect.fromCircle(center: c, radius: r),
-      -pi / 2, 2 * pi * value, false, fg,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_ArcPainter o) => o.value != value;
-}
 
 // ══════════════════════════════════════════════════════════════
 // FILTER BOTTOM SHEET
@@ -1111,6 +676,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
 
   void _apply() {
     HapticUtils.mediumImpact();
+    CustomToast.success(context, 'Filters applied!');
     // TODO: filterProvider.applyFilters(...)
     Navigator.of(context).pop();
   }
@@ -1184,7 +750,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                 children: [
 
                   // ── Age ──────────────────────────────────
-                  _SheetLabel('Age Range'),
+                  const SectionHeader(title: 'Age Range', padding: EdgeInsets.zero),
                   _SheetHint(
                     '${_ageRange.start.round()} – ${_ageRange.end.round()} years',
                   ),
@@ -1201,7 +767,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                   const SizedBox(height: 16),
 
                   // ── Height ───────────────────────────────
-                  _SheetLabel('Height Range'),
+                  const SectionHeader(title: 'Height Range', padding: EdgeInsets.zero),
                   _SheetHint(
                     '${_cmToFeet(_heightRange.start.round())} – '
                         '${_cmToFeet(_heightRange.end.round())}',
@@ -1219,7 +785,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                   const SizedBox(height: 16),
 
                   // ── City ─────────────────────────────────
-                  _SheetLabel('City'),
+                  const SectionHeader(title: 'City', padding: EdgeInsets.zero),
                   const SizedBox(height: 10),
                   _SheetChipGroup(
                     items:    _cities,
@@ -1229,7 +795,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                   const SizedBox(height: 16),
 
                   // ── Education ────────────────────────────
-                  _SheetLabel('Education'),
+                  const SectionHeader(title: 'Education', padding: EdgeInsets.zero),
                   const SizedBox(height: 10),
                   _SheetChipGroup(
                     items:    _educations,
@@ -1239,7 +805,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                   const SizedBox(height: 16),
 
                   // ── Toggles ───────────────────────────────
-                  _SheetLabel('Preferences'),
+                  const SectionHeader(title: 'Preferences', padding: EdgeInsets.zero),
                   const SizedBox(height: 10),
                   _SheetToggle(
                     label:    'Online users only',
@@ -1257,28 +823,10 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                   const SizedBox(height: 28),
 
                   // ── Apply button ──────────────────────────
-                  SizedBox(
+                  PrimaryButton(
+                    text:  'Apply Filters',
                     width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _apply,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.brandPrimary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: const Text(
-                        'Apply Filters',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w800,
-                          fontSize:   15,
-                        ),
-                      ),
-                    ),
+                    onTap: _apply,
                   ),
                 ],
               ),
@@ -1291,22 +839,6 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
 }
 
 // ── Sheet sub-widgets ─────────────────────────────────────────
-
-class _SheetLabel extends StatelessWidget {
-  const _SheetLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Text(
-    text,
-    style: const TextStyle(
-      fontFamily: 'Poppins',
-      fontSize:   14,
-      fontWeight: FontWeight.w800,
-      color:      AppTheme.brandDark,
-    ),
-  );
-}
 
 class _SheetHint extends StatelessWidget {
   const _SheetHint(this.text);
@@ -1339,32 +871,13 @@ class _SheetChipGroup extends StatelessWidget {
       spacing: 8, runSpacing: 8,
       children: items.map((item) {
         final isSel = item == selected;
-        return GestureDetector(
+        return CustomChip(
+          label:      item,
+          isSelected: isSel,
           onTap: () {
             HapticUtils.selectionClick();
             onSelect(item);
           },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              color: isSel ? AppTheme.brandPrimary : Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isSel ? AppTheme.brandPrimary : Colors.grey.shade200,
-              ),
-              boxShadow: isSel ? AppTheme.primaryGlow : [],
-            ),
-            child: Text(
-              item,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize:   12,
-                fontWeight: FontWeight.w600,
-                color: isSel ? Colors.white : Colors.grey.shade700,
-              ),
-            ),
-          ),
         );
       }).toList(),
     );

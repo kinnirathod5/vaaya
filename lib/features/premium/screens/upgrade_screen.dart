@@ -4,8 +4,13 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/custom_toast.dart';
 import '../../../../core/utils/haptic_utils.dart';
 import '../../../../shared/animations/fade_animation.dart';
+import '../../../../core/constants/app_assets.dart';
+import '../../../../shared/widgets/custom_network_image.dart';
+import '../../../../shared/widgets/glass_container.dart';
+import '../../../../shared/widgets/primary_button.dart';
 
 // ============================================================
 // 💎 UPGRADE SCREEN — v2.0 All Widgets Inlined
@@ -119,6 +124,7 @@ const _testimonials = <Map<String, dynamic>>[
     'text':
     'Found the right match within 2 weeks of going Premium. The contact number feature was incredibly useful.',
     'rating': 5,
+    'image': AppAssets.dummyMale1,
   },
   {
     'name': 'Ramesh Pawar',
@@ -126,6 +132,7 @@ const _testimonials = <Map<String, dynamic>>[
     'text':
     'The Kundali Match Report gave us so much confidence. Our families were reassured by the compatibility score.',
     'rating': 5,
+    'image': AppAssets.dummyMale2,
   },
 ];
 
@@ -434,6 +441,7 @@ class _UpgradeScreenState extends State<UpgradeScreen>
               onTap: () {
                 HapticUtils.selectionClick();
                 setState(() => _selectedPlan = p['id'] as int);
+                CustomToast.premium(context, '${p['duration']} plan selected');
               },
             ),
           );
@@ -632,69 +640,16 @@ class _UpgradeScreenState extends State<UpgradeScreen>
               ),
               const SizedBox(height: 12),
 
-              // CTA button — gold shimmer
-              AnimatedBuilder(
-                animation: _shimmerCtrl,
-                builder: (_, child) {
-                  final t = _shimmerCtrl.value;
-                  return ShaderMask(
-                    shaderCallback: (bounds) => LinearGradient(
-                      colors: const [
-                        Color(0xFFC9962A),
-                        Color(0xFFF5C842),
-                        Color(0xFFFFF0A0),
-                        Color(0xFFF5C842),
-                        Color(0xFFC9962A),
-                      ],
-                      stops: [
-                        (t - 0.4).clamp(0.0, 1.0),
-                        (t - 0.1).clamp(0.0, 1.0),
-                        t.clamp(0.0, 1.0),
-                        (t + 0.1).clamp(0.0, 1.0),
-                        (t + 0.4).clamp(0.0, 1.0),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ).createShader(bounds),
-                    child: child!,
-                  );
+              // CTA button — PrimaryButton.gold
+              PrimaryButton(
+                text: 'Upgrade to Elite — ${plan['price']}',
+                icon: Icons.diamond_rounded,
+                variant: ButtonVariant.gold,
+                width: double.infinity,
+                onTap: () {
+                  HapticUtils.heavyImpact();
+                  // TODO: premiumProvider.initiatePayment(plan)
                 },
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      HapticUtils.heavyImpact();
-                      // TODO: premiumProvider.initiatePayment(plan)
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.goldPrimary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shadowColor: AppTheme.goldPrimary.withValues(alpha: 0.40),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.diamond_rounded,
-                            size: 18, color: Colors.white),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Upgrade to Elite — ${plan['price']}',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ),
               const SizedBox(height: 7),
               Text(
@@ -787,29 +742,25 @@ class _PlanCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          color: isSelected
-              ? AppTheme.goldPrimary.withValues(alpha: 0.10)
-              : Colors.white.withValues(alpha: 0.04),
-          border: Border.all(
-            color: isSelected
-                ? AppTheme.goldPrimary
-                : Colors.white.withValues(alpha: 0.10),
-            width: isSelected ? 1.5 : 1,
-          ),
           boxShadow: isSelected
               ? [
             BoxShadow(
-              color: AppTheme.goldPrimary.withValues(alpha: 0.20),
+              color: AppTheme.goldPrimary.withValues(alpha: 0.22),
               blurRadius: 18,
               offset: const Offset(0, 6),
             ),
           ]
               : [],
         ),
-        child: Row(
+        child: GlassContainer(
+          variant: isSelected ? GlassVariant.gold : GlassVariant.dark,
+          blur: 12,
+          opacity: isSelected ? 0.12 : 0.04,
+          borderRadius: BorderRadius.circular(20),
+          padding: const EdgeInsets.all(16),
+          child: Row(
           children: [
 
             // Radio circle
@@ -944,6 +895,7 @@ class _PlanCard extends StatelessWidget {
               ],
             ),
           ],
+        ),
         ),
       ),
     );
@@ -1113,24 +1065,13 @@ class _TestimonialCard extends StatelessWidget {
           Row(
             children: [
 
-              // Gold avatar initial
-              Container(
-                width: 42, height: 42,
-                decoration: BoxDecoration(
-                  gradient: AppTheme.goldGradient,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Center(
-                  child: Text(
-                    (testimonial['name'] as String).substring(0, 1),
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+              // Testimonial avatar
+              CustomNetworkImage(
+                imageUrl: testimonial['image'] as String,
+                width: 42,
+                height: 42,
+                borderRadius: 13,
+                errorType: ImageErrorType.avatar,
               ),
               const SizedBox(width: 12),
 

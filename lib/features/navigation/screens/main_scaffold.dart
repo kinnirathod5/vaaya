@@ -195,23 +195,28 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 14 : 10,
-          vertical: 10,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.brandPrimary.withValues(alpha: 0.10)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: Row(
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        splashColor: AppTheme.brandPrimary.withValues(alpha: 0.08),
+        highlightColor: Colors.transparent,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+          padding: EdgeInsets.symmetric(
+            horizontal: isSelected ? 14 : 10,
+            vertical: 10,
+          ),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppTheme.brandPrimary.withValues(alpha: 0.10)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
 
@@ -295,6 +300,7 @@ class _NavItem extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }
@@ -312,10 +318,14 @@ class _PremiumNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        splashColor: AppTheme.goldPrimary.withValues(alpha: 0.15),
+        highlightColor: Colors.transparent,
+        child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 320),
@@ -359,6 +369,7 @@ class _PremiumNavItem extends StatelessWidget {
                 ? AppTheme.goldLight
                 : AppTheme.goldPrimary,
           ),
+        ),
         ),
       ),
     );

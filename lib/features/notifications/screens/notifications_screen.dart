@@ -3,9 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/custom_toast.dart';
 import '../../../../core/utils/haptic_utils.dart';
 import '../../../../shared/animations/fade_animation.dart';
-import '../../../../shared/widgets/custom_network_image.dart';
+import '../../../../shared/widgets/custom_app_bar.dart';
+import '../../../../shared/widgets/empty_state_widget.dart';
+import '../../../../shared/widgets/premium_avatar.dart';
+import '../../../../shared/widgets/section_header.dart';
+import '../../../../shared/widgets/shimmer_loading_grid.dart';
 
 // ============================================================
 // 🔔 NOTIFICATIONS SCREEN
@@ -117,6 +122,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     },
   ];
 
+  bool _isLoading = true;
+
   // ── Computed ──────────────────────────────────────────────
   List<Map<String, dynamic>> get _todayNotifs =>
       _notifications.where((n) => n['isToday'] as bool).toList();
@@ -135,6 +142,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
     ));
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) setState(() => _isLoading = false);
+    });
   }
 
   // ── Handlers ──────────────────────────────────────────────
@@ -155,11 +165,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     setState(() {
       for (final n in _notifications) { n['isRead'] = true; }
     });
+    CustomToast.success(context, 'All notifications marked as read');
   }
 
   void _deleteNotification(String id) {
     HapticUtils.mediumImpact();
     setState(() => _notifications.removeWhere((n) => n['id'] == id));
+    if (mounted) CustomToast.info(context, 'Notification removed');
   }
 
   // ── Build ─────────────────────────────────────────────────
@@ -167,287 +179,94 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
+    Widget body;
+    if (_isLoading) {
+      body = const ShimmerLoadingGrid(mode: ShimmerMode.list, itemCount: 5);
+    } else if (_notifications.isEmpty) {
+      body = EmptyStateWidget.noNotifications();
+    } else {
+      final todayUnread = _todayNotifs
+          .where((n) => !(n['isRead'] as bool))
+          .length;
+
+      body = ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.only(bottom: 24 + bottomPadding),
+        children: [
+          // Today
+          if (_todayNotifs.isNotEmpty) ...[
+            SectionHeader(
+              title: 'Today',
+              badge: todayUnread > 0 ? todayUnread : null,
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            ),
+            ..._todayNotifs.asMap().entries.map((e) => FadeAnimation(
+              delayInMs: e.key * 60,
+              child: _NotifTile(
+                notif: e.value,
+                onTap: () => _onTap(e.value),
+                onDelete: () => _deleteNotification(e.value['id']),
+              ),
+            )),
+            const SizedBox(height: 8),
+          ],
+
+          // Earlier
+          if (_earlierNotifs.isNotEmpty) ...[
+            const SectionHeader(
+              title: 'Earlier',
+              padding: EdgeInsets.fromLTRB(20, 12, 20, 8),
+            ),
+            ..._earlierNotifs.asMap().entries.map((e) => FadeAnimation(
+              delayInMs: 200 + e.key * 60,
+              child: _NotifTile(
+                notif: e.value,
+                onTap: () => _onTap(e.value),
+                onDelete: () => _deleteNotification(e.value['id']),
+              ),
+            )),
+          ],
+        ],
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.bgScaffold,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      appBar: CustomAppBar(
+        title: 'Notifications',
+        badge: _unreadCount > 0 ? _unreadCount : null,
+        subtitle: _unreadCount > 0
+            ? '$_unreadCount unread notifications'
+            : 'All caught up!',
+        actions: _unreadCount > 0 ? [_buildMarkAllReadButton()] : null,
+      ),
+      body: body,
+    );
+  }
 
-            // ── Header ───────────────────────────────────
-            _buildHeader(),
-            const SizedBox(height: 8),
-
-            // ── Content ──────────────────────────────────
-            Expanded(
-              child: _notifications.isEmpty
-                  ? _buildEmptyState()
-                  : ListView(
-                physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.only(
-                  bottom: 24 + bottomPadding,
-                ),
-                children: [
-                  // Today
-                  if (_todayNotifs.isNotEmpty) ...[
-                    _SectionLabel(
-                      label: 'Today',
-                      count: _todayNotifs
-                          .where((n) => !(n['isRead'] as bool))
-                          .length,
-                    ),
-                    ..._todayNotifs.asMap().entries.map((e) {
-                      return FadeAnimation(
-                        delayInMs: e.key * 60,
-                        child: _NotifTile(
-                          notif: e.value,
-                          onTap: () => _onTap(e.value),
-                          onDelete: () =>
-                              _deleteNotification(e.value['id']),
-                        ),
-                      );
-                    }),
-                    const SizedBox(height: 8),
-                  ],
-
-                  // Earlier
-                  if (_earlierNotifs.isNotEmpty) ...[
-                    const _SectionLabel(label: 'Earlier'),
-                    ..._earlierNotifs.asMap().entries.map((e) {
-                      return FadeAnimation(
-                        delayInMs: 200 + e.key * 60,
-                        child: _NotifTile(
-                          notif: e.value,
-                          onTap: () => _onTap(e.value),
-                          onDelete: () =>
-                              _deleteNotification(e.value['id']),
-                        ),
-                      );
-                    }),
-                  ],
-                ],
-              ),
-            ),
-          ],
+  // ── Mark all read pill button (passed to CustomAppBar.actions) ─
+  Widget _buildMarkAllReadButton() {
+    return GestureDetector(
+      onTap: _markAllRead,
+      child: Container(
+        margin: const EdgeInsets.only(right: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: AppTheme.brandPrimary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppTheme.brandPrimary.withValues(alpha: 0.15),
+          ),
         ),
-      ),
-    );
-  }
-
-  // ── Header ────────────────────────────────────────────────
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          // Back
-          Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            elevation: 0,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () {
-                HapticUtils.lightImpact();
-                context.pop();
-              },
-              child: Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.grey.shade200),
-                  boxShadow: AppTheme.softShadow,
-                ),
-                child: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: AppTheme.brandDark,
-                  size: 16,
-                ),
-              ),
-            ),
+        child: const Text(
+          'Mark all read',
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.brandPrimary,
           ),
-          const SizedBox(width: 16),
-
-          // Title
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Text(
-                      'Notifications',
-                      style: TextStyle(
-                        fontFamily: 'Cormorant Garamond',
-                        fontSize: 26,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.brandDark,
-                        letterSpacing: -0.5,
-                        height: 1.1,
-                      ),
-                    ),
-                    if (_unreadCount > 0) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.brandPrimary,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '$_unreadCount',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                Text(
-                  _unreadCount > 0
-                      ? '$_unreadCount unread notifications'
-                      : 'All caught up!',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    color: Colors.grey.shade500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Mark all read
-          if (_unreadCount > 0)
-            GestureDetector(
-              onTap: _markAllRead,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.brandPrimary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppTheme.brandPrimary.withValues(alpha: 0.15),
-                  ),
-                ),
-                child: const Text(
-                  'Mark all read',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.brandPrimary,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  // ── Empty State ───────────────────────────────────────────
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80, height: 80,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFAE4E9),
-              shape: BoxShape.circle,
-            ),
-            child: const Center(
-              child: Text('🔔', style: TextStyle(fontSize: 34)),
-            ),
-          ),
-          const SizedBox(height: 18),
-          const Text(
-            'No notifications yet',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.brandDark,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'When someone sends you an interest\nor views your profile, it will show here.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 12,
-              color: Colors.grey.shade500,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-
-// ── Section Label ────────────────────────────────────────────
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label, this.count = 0});
-  final String label;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Colors.grey.shade400,
-              letterSpacing: 1.2,
-            ),
-          ),
-          if (count > 0) ...[
-            const SizedBox(width: 7),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppTheme.brandPrimary.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '$count new',
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.brandPrimary,
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(width: 10),
-          Expanded(
-            child: Container(
-              height: 1,
-              color: Colors.grey.shade200,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -523,18 +342,11 @@ class _NotifTile extends StatelessWidget {
 
               // ── Avatar / Icon ──────────────────────────
               Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  // Photo or icon
+                  // Photo (PremiumAvatar) or fallback icon
                   image != null
-                      ? ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: CustomNetworkImage(
-                      imageUrl: image,
-                      width: 48,
-                      height: 48,
-                      borderRadius: 14,
-                    ),
-                  )
+                      ? PremiumAvatar(imageUrl: image, size: 48)
                       : Container(
                     width: 48, height: 48,
                     decoration: BoxDecoration(
@@ -544,7 +356,7 @@ class _NotifTile extends StatelessWidget {
                     child: Icon(icon, color: color, size: 22),
                   ),
 
-                  // Type icon badge (on photo)
+                  // Type icon badge overlaid on photo
                   if (image != null)
                     Positioned(
                       bottom: -2, right: -2,

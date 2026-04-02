@@ -4,8 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/haptic_utils.dart';
+import '../../../../core/utils/custom_toast.dart';
 import '../../../../core/constants/app_assets.dart';
-import '../../../../shared/widgets/custom_network_image.dart';
+import '../../../../shared/animations/fade_animation.dart';
+import '../../../../shared/widgets/premium_avatar.dart';
+import '../../../../shared/widgets/premium_icon_button.dart';
+import '../../../../shared/widgets/premium_lock_overlay.dart';
+import '../../../../shared/widgets/empty_state_widget.dart';
 
 // ============================================================
 // 💬 CHAT DETAIL SCREEN — v2.0 All Widgets Inlined
@@ -56,6 +61,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final _msgCtrl    = TextEditingController();
   final _scrollCtrl = ScrollController();
   bool _isTyping = false;
+  // TODO: replace with subscription provider (Riverpod)
+  static const bool _isCurrentUserPremium = false;
 
   final List<Map<String, dynamic>> _messages = [
     {
@@ -178,36 +185,56 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
           // ── Messages ─────────────────────────────────
           Expanded(
-            child: ListView.builder(
-              controller: _scrollCtrl,
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              itemCount: _messages.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) return const _DateDivider('Today');
-                final msg = _messages[index - 1];
-                // Show avatar only on last consecutive message from other user
-                final bool showAvatar =
-                    !(msg['isMe'] as bool) &&
-                        (index == _messages.length ||
-                            (_messages[index]['isMe'] as bool));
-                return _MessageBubble(
-                  message:        msg,
-                  showAvatar:     showAvatar,
-                  otherUserImage: _otherUser['image'],
-                );
-              },
-            ),
+            child: _messages.isEmpty
+                ? EmptyStateWidget(
+                    emoji: '💬',
+                    title: 'Start the conversation',
+                    message: 'Send a message to ${_otherUser['name']}!',
+                  )
+                : ListView.builder(
+                    controller: _scrollCtrl,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    itemCount: _messages.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == 0) return const _DateDivider('Today');
+                      final msg = _messages[index - 1];
+                      // Show avatar only on last consecutive message from other user
+                      final bool showAvatar =
+                          !(msg['isMe'] as bool) &&
+                              (index == _messages.length ||
+                                  (_messages[index]['isMe'] as bool));
+                      return _MessageBubble(
+                        message:        msg,
+                        showAvatar:     showAvatar,
+                        otherUserImage: _otherUser['image'] as String,
+                      );
+                    },
+                  ),
           ),
 
-          // ── Input bar ────────────────────────────────
-          _ChatInputBar(
-            controller:     _msgCtrl,
-            isTyping:       _isTyping,
-            bottomPadding:  bottomPad,
-            onSend:         _sendMessage,
-            onAttachment:   () => HapticUtils.lightImpact(),
-          ),
+          // ── Input bar / Premium gate ─────────────────
+          if (_isCurrentUserPremium)
+            _ChatInputBar(
+              controller:    _msgCtrl,
+              isTyping:      _isTyping,
+              bottomPadding: bottomPad,
+              onSend:        _sendMessage,
+              onAttachment:  () => HapticUtils.lightImpact(),
+            )
+          else
+            PremiumLockOverlay(
+              lockType:    LockType.premium,
+              title:       'Upgrade to Reply',
+              subtitle:    'Free users can read messages but cannot reply. Upgrade to start chatting!',
+              buttonLabel: 'Upgrade Now',
+              blurSigma:   0,
+              useDarkTheme: false,
+              onUnlockTap: () {
+                HapticUtils.mediumImpact();
+                context.push('/premium');
+              },
+            ),
         ],
       ),
     );
@@ -248,19 +275,28 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             _OptionTile(
               icon: Icons.volume_off_rounded,
               label: 'Mute Chat',
-              onTap: () => Navigator.pop(context),
+              onTap: () {
+                Navigator.pop(context);
+                CustomToast.success(context, 'Chat muted');
+              },
             ),
             _OptionTile(
               icon: Icons.block_rounded,
               label: 'Block User',
               color: Colors.orange.shade600,
-              onTap: () => Navigator.pop(context),
+              onTap: () {
+                Navigator.pop(context);
+                CustomToast.info(context, 'User blocked');
+              },
             ),
             _OptionTile(
               icon: Icons.delete_outline_rounded,
               label: 'Delete Chat',
               color: Colors.red.shade500,
-              onTap: () => Navigator.pop(context),
+              onTap: () {
+                Navigator.pop(context);
+                CustomToast.success(context, 'Chat deleted');
+              },
             ),
           ],
         ),
@@ -305,55 +341,26 @@ class _ChatHeader extends StatelessWidget {
           child: Row(
             children: [
 
-              // Back button
-              GestureDetector(
+              // Back button — PremiumIconButton
+              PremiumIconButton(
+                icon: Icons.arrow_back_ios_new_rounded,
+                shape: ButtonShape.rounded,
+                padding: 10.0,
+                iconSize: 16,
                 onTap: onBackTap,
-                child: Container(
-                  width: 40, height: 40,
-                  margin: const EdgeInsets.only(right: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: AppTheme.brandDark,
-                    size: 18,
-                  ),
-                ),
               ),
+              const SizedBox(width: 4),
 
-              // Avatar + name — tappable
+              // Avatar (PremiumAvatar with online dot) + name — tappable
               Expanded(
                 child: GestureDetector(
                   onTap: onProfileTap,
                   child: Row(
                     children: [
-                      Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: CustomNetworkImage(
-                              imageUrl: user['image'],
-                              width: 44, height: 44,
-                              borderRadius: 16,
-                            ),
-                          ),
-                          if (isOnline)
-                            Positioned(
-                              bottom: 1, right: 1,
-                              child: Container(
-                                width: 12, height: 12,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.onlineDot,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white, width: 1.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
+                      PremiumAvatar(
+                        imageUrl: user['image'] as String,
+                        size: 44,
+                        isOnline: isOnline,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -361,7 +368,7 @@ class _ChatHeader extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              user['name'],
+                              user['name'] as String,
                               style: const TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 15,
@@ -373,7 +380,7 @@ class _ChatHeader extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              isOnline ? '● Online' : user['lastSeen'],
+                              isOnline ? '● Online' : user['lastSeen'] as String,
                               style: TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 11,
@@ -391,39 +398,25 @@ class _ChatHeader extends StatelessWidget {
                 ),
               ),
 
-              // Video call
-              GestureDetector(
+              // Video call — PremiumIconButton
+              PremiumIconButton(
+                icon: Icons.videocam_rounded,
+                shape: ButtonShape.rounded,
+                iconColor: AppTheme.brandPrimary,
+                backgroundColor:
+                    AppTheme.brandPrimary.withValues(alpha: 0.08),
+                showBorder: false,
+                padding: 10.0,
                 onTap: onCallTap,
-                child: Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                    color: AppTheme.brandPrimary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.videocam_rounded,
-                    color: AppTheme.brandPrimary,
-                    size: 20,
-                  ),
-                ),
               ),
               const SizedBox(width: 8),
 
-              // More options
-              GestureDetector(
+              // More options — PremiumIconButton
+              PremiumIconButton(
+                icon: Icons.more_vert_rounded,
+                shape: ButtonShape.rounded,
+                padding: 10.0,
                 onTap: onMoreTap,
-                child: Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.more_vert_rounded,
-                    color: Colors.grey.shade600,
-                    size: 20,
-                  ),
-                ),
               ),
             ],
           ),
@@ -453,7 +446,11 @@ class _MessageBubble extends StatelessWidget {
     final String time   = message['time']   as String;
     final String status = message['status'] as String? ?? 'sent';
 
-    return Padding(
+    return FadeAnimation(
+      delayInMs: 0,
+      direction: FadeDirection.up,
+      durationInMs: 280,
+      child: Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         mainAxisAlignment:
@@ -461,16 +458,12 @@ class _MessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
 
-          // Other user avatar
+          // Other user avatar — PremiumAvatar (circular, online dot)
           if (!isMe) ...[
             showAvatar
-                ? ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: CustomNetworkImage(
-                imageUrl: otherUserImage,
-                width: 30, height: 30,
-                borderRadius: 12,
-              ),
+                ? PremiumAvatar(
+              imageUrl: otherUserImage,
+              size: 30,
             )
                 : const SizedBox(width: 30),
             const SizedBox(width: 8),
@@ -549,7 +542,7 @@ class _MessageBubble extends StatelessWidget {
           if (isMe) const SizedBox(width: 4),
         ],
       ),
-    );
+    ));
   }
 }
 

@@ -5,9 +5,18 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/haptic_utils.dart';
+import '../../../../core/utils/custom_toast.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../shared/animations/fade_animation.dart';
 import '../../../../shared/widgets/custom_network_image.dart';
+import '../../../../shared/widgets/glass_container.dart';
+import '../../../../shared/widgets/premium_avatar.dart';
+import '../../../../shared/widgets/premium_icon_button.dart';
+import '../../../../shared/widgets/primary_button.dart';
+import '../../../../shared/widgets/empty_state_widget.dart';
+import '../../../../shared/widgets/match_badge.dart';
+import '../../../../shared/widgets/section_header.dart';
+import '../../../../shared/widgets/shimmer_loading_grid.dart';
 
 // ============================================================
 // ❤️ INTERESTS SCREEN — v2.0 Full Rewrite (All Widgets Inlined)
@@ -94,6 +103,7 @@ class _InterestsScreenState extends State<InterestsScreen>
     with SingleTickerProviderStateMixin {
 
   late final TabController _tabController;
+  bool _isLoading = true;
 
   // Mutable copies of dummy data
   late final List<Map<String, dynamic>> _received;
@@ -112,6 +122,11 @@ class _InterestsScreenState extends State<InterestsScreen>
     _received = List.from(_dummyReceived);
     _sent     = List.from(_dummySent);
     _mutual   = List.from(_dummyMutual);
+
+    // Simulate loading delay — replace with real provider call
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (mounted) setState(() => _isLoading = false);
+    });
 
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
@@ -137,48 +152,21 @@ class _InterestsScreenState extends State<InterestsScreen>
       _mutual.insert(0, {...r, 'matchedTime': 'Just now'});
     });
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        elevation: 0,
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.transparent,
-        duration: const Duration(seconds: 2),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        content: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          decoration: BoxDecoration(
-            gradient: AppTheme.brandGradient,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: AppTheme.primaryGlow,
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.favorite_rounded, color: Colors.white, size: 18),
-              SizedBox(width: 10),
-              Text(
-                '🎉  Interest accepted! It\'s a match!',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    CustomToast.match(context, r['name'] as String);
   }
 
   void _decline(String id) {
     HapticUtils.mediumImpact();
     setState(() => _received.removeWhere((r) => r['id'] == id));
+    if (!mounted) return;
+    CustomToast.info(context, 'Interest declined');
   }
 
   void _cancelSent(String id) {
     HapticUtils.mediumImpact();
     setState(() => _sent.removeWhere((r) => r['id'] == id));
+    if (!mounted) return;
+    CustomToast.info(context, 'Interest cancelled');
   }
 
   // ── Build ──────────────────────────────────────────────────
@@ -291,47 +279,15 @@ class _InterestsScreenState extends State<InterestsScreen>
           ),
           const SizedBox(width: 12),
 
-          // Notification button
-          GestureDetector(
+          // Notification button — PremiumIconButton with badge
+          PremiumIconButton(
+            icon: Icons.notifications_outlined,
+            shape: ButtonShape.rounded,
+            badgeCount: newCount,
             onTap: () {
               HapticUtils.lightImpact();
               context.push('/notifications');
             },
-            child: Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: AppTheme.brandPrimary.withValues(alpha: 0.12),
-                ),
-                boxShadow: AppTheme.softShadow,
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Icon(
-                    Icons.notifications_outlined,
-                    color: AppTheme.brandDark,
-                    size: 22,
-                  ),
-                  if (newCount > 0)
-                    Positioned(
-                      top: 8, right: 8,
-                      child: Container(
-                        width: 10, height: 10,
-                        decoration: BoxDecoration(
-                          color: AppTheme.brandPrimary,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white, width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
           ),
         ],
       ),
@@ -375,12 +331,15 @@ class _InterestsScreenState extends State<InterestsScreen>
   // RECEIVED TAB
   // ══════════════════════════════════════════════════════════
   Widget _buildReceivedTab(double bottomPad) {
-    if (_received.isEmpty && _mutual.isEmpty) {
-      return _EmptyState(
-        emoji: '💌',
-        title: 'No interests yet',
-        message: 'When someone sends you an interest,\nit will appear here.',
+    if (_isLoading) {
+      return ShimmerLoadingGrid(
+        mode: ShimmerMode.list,
+        itemCount: 3,
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
       );
+    }
+    if (_received.isEmpty && _mutual.isEmpty) {
+      return EmptyStateWidget.noInterests();
     }
 
     return ListView(
@@ -390,7 +349,11 @@ class _InterestsScreenState extends State<InterestsScreen>
 
         // Mutual matches — shown first (most exciting)
         if (_mutual.isNotEmpty) ...[
-          _SectionLabel(label: 'Mutual Match', emoji: '🎉'),
+          SectionHeader(
+            title: 'Mutual Match 🎉',
+            icon: Icons.favorite_rounded,
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+          ),
           ..._mutual.asMap().entries.map((e) => FadeAnimation(
             delayInMs: e.key * 80,
             child: _MutualMatchCard(
@@ -410,10 +373,11 @@ class _InterestsScreenState extends State<InterestsScreen>
 
         // Received requests
         if (_received.isNotEmpty) ...[
-          _SectionLabel(
-            label: 'New Requests',
-            emoji: '❤️',
-            count: _received.length,
+          SectionHeader(
+            title: 'New Requests',
+            icon: Icons.favorite_outline_rounded,
+            badge: _received.length,
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
           ),
           ..._received.asMap().entries.map((e) => FadeAnimation(
             delayInMs: e.key * 100,
@@ -436,12 +400,15 @@ class _InterestsScreenState extends State<InterestsScreen>
   // SENT TAB
   // ══════════════════════════════════════════════════════════
   Widget _buildSentTab(double bottomPad) {
-    if (_sent.isEmpty) {
-      return _EmptyState(
-        emoji: '📤',
-        title: 'No interests sent',
-        message: 'Browse profiles and send\nyour first interest.',
+    if (_isLoading) {
+      return ShimmerLoadingGrid(
+        mode: ShimmerMode.list,
+        itemCount: 3,
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
       );
+    }
+    if (_sent.isEmpty) {
+      return EmptyStateWidget.noInterests(isSent: true);
     }
 
     return ListView(
@@ -588,77 +555,7 @@ class _TabPill extends StatelessWidget {
   }
 }
 
-// ══════════════════════════════════════════════════════════════
-// SECTION LABEL — gradient fade line
-// ══════════════════════════════════════════════════════════════
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({
-    required this.label,
-    required this.emoji,
-    this.count,
-  });
-  final String label;
-  final String emoji;
-  final int?   count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-      child: Row(
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 13)),
-          const SizedBox(width: 6),
-          Text(
-            label.toUpperCase(),
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: Colors.grey.shade500,
-              letterSpacing: 1.2,
-            ),
-          ),
-          if (count != null) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 7, vertical: 2,
-              ),
-              decoration: BoxDecoration(
-                color: AppTheme.brandPrimary.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '$count',
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.brandPrimary,
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(width: 10),
-          Expanded(
-            child: Container(
-              height: 1,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.brandPrimary.withValues(alpha: 0.14),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// _SectionLabel removed — replaced by shared SectionHeader widget
 
 // ══════════════════════════════════════════════════════════════
 // MUTUAL MATCH CARD — dark premium card
@@ -699,21 +596,12 @@ class _MutualMatchCard extends StatelessWidget {
             child: Row(
               children: [
 
-                // Photo with brand gradient ring
-                Container(
-                  padding: const EdgeInsets.all(2.5),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    gradient: AppTheme.brandGradient,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: CustomNetworkImage(
-                      imageUrl: profile['image'],
-                      width: 60, height: 60,
-                      borderRadius: 16,
-                    ),
-                  ),
+                // Photo with brand gradient ring via PremiumAvatar
+                PremiumAvatar(
+                  imageUrl: profile['image'] as String,
+                  size: 62,
+                  showRing: true,
+                  isNew: true,
                 ),
                 const SizedBox(width: 14),
 
@@ -907,26 +795,11 @@ class _ReceivedCard extends StatelessWidget {
                       const SizedBox(width: 6),
                     ],
 
-                    // Match %
+                    // Match % — shared MatchBadge
                     if (matchPct > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: AppTheme.softShadow,
-                        ),
-                        child: Text(
-                          '🔥 $matchPct%',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.brandPrimary,
-                          ),
-                        ),
+                      MatchBadge(
+                        percent: matchPct,
+                        size: BadgeSize.small,
                       ),
                   ],
                 ),
@@ -978,75 +851,27 @@ class _ReceivedCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
 
-                      // Action buttons
+                      // Action buttons — PrimaryButton (shared widget)
                       Row(
                         children: [
-
-                          // Decline
                           Expanded(
-                            child: GestureDetector(
+                            child: PrimaryButton(
+                              text: 'Decline',
+                              icon: Icons.close_rounded,
+                              variant: ButtonVariant.ghost,
+                              height: 44,
                               onTap: onDecline,
-                              child: Container(
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.10),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.15),
-                                  ),
-                                ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.close_rounded,
-                                        color: Colors.white70, size: 15),
-                                    SizedBox(width: 5),
-                                    Text(
-                                      'Decline',
-                                      style: TextStyle(
-                                        fontFamily: 'Poppins',
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
                             ),
                           ),
                           const SizedBox(width: 10),
-
-                          // Accept
                           Expanded(
                             flex: 2,
-                            child: GestureDetector(
+                            child: PrimaryButton(
+                              text: 'Accept Interest',
+                              icon: Icons.favorite_rounded,
+                              variant: ButtonVariant.filled,
+                              height: 44,
                               onTap: onAccept,
-                              child: Container(
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  gradient: AppTheme.brandGradient,
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: AppTheme.primaryGlow,
-                                ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.favorite_rounded,
-                                        color: Colors.white, size: 15),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      'Accept Interest',
-                                      style: TextStyle(
-                                        fontFamily: 'Poppins',
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
                             ),
                           ),
                         ],
@@ -1226,109 +1051,31 @@ class _SentCard extends StatelessWidget {
   }
 }
 
-// ══════════════════════════════════════════════════════════════
-// EMPTY STATE
-// ══════════════════════════════════════════════════════════════
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({
-    required this.emoji,
-    required this.title,
-    required this.message,
-  });
-  final String emoji, title, message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(36),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 88, height: 88,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppTheme.brandPrimary.withValues(alpha: 0.10),
-                    AppTheme.brandPrimary.withValues(alpha: 0.05),
-                  ],
-                ),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppTheme.brandPrimary.withValues(alpha: 0.12),
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  emoji,
-                  style: const TextStyle(fontSize: 38),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: 'Cormorant Garamond',
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.brandDark,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: Colors.grey.shade500,
-                height: 1.55,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// _EmptyState removed — replaced by shared EmptyStateWidget.noInterests()
 
 // ══════════════════════════════════════════════════════════════
 // GLASS BADGE — frosted glass pill
 // ══════════════════════════════════════════════════════════════
+// _GlassBadge — replaced by shared GlassContainer
 class _GlassBadge extends StatelessWidget {
   const _GlassBadge({required this.label});
   final String label;
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
+    return GlassContainer(
+      variant: GlassVariant.dark,
+      blur: 8,
+      opacity: 0.12,
       borderRadius: BorderRadius.circular(10),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.18),
-            ),
-          ),
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontFamily: 'Poppins',
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
         ),
       ),
     );

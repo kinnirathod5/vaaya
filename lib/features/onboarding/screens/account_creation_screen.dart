@@ -11,8 +11,10 @@ import '../../../core/constants/onboarding_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/haptic_utils.dart';
 import '../../../shared/animations/fade_animation.dart';
-import '../../../shared/widgets/auth_snackbar.dart';
+import '../../../core/utils/custom_toast.dart';
 import '../../../shared/widgets/custom_chip.dart';
+import '../../../shared/widgets/glass_container.dart';
+import '../../../shared/widgets/handle_bar.dart';
 import '../../../shared/widgets/custom_textfield.dart';
 import '../../../shared/widgets/primary_button.dart';
 import '../../../shared/widgets/step_progress_header.dart';
@@ -211,13 +213,14 @@ class _AccountCreationScreenState extends State<AccountCreationScreen>
     if (!_canNext) {
       HapticUtils.errorVibrate();
       if (_validationMessage.isNotEmpty) {
-        AuthSnackbar.showError(context, _validationMessage);
+        CustomToast.error(context, _validationMessage);
       }
       return;
     }
     FocusScope.of(context).unfocus();
     if (_step < _totalSteps - 1) {
       HapticUtils.lightImpact();
+      CustomToast.success(context, '${_stepMeta[_step]['label']} saved ✓');
       setState(() => _step++);
       _pageCtrl.animateToPage(
         _step,
@@ -375,7 +378,7 @@ class _AccountCreationScreenState extends State<AccountCreationScreen>
                               behavior: HitTestBehavior.opaque,
                               onTap: () {
                                 HapticUtils.errorVibrate();
-                                AuthSnackbar.showError(
+                                CustomToast.error(
                                     context, _validationMessage);
                               },
                             ),
@@ -555,6 +558,8 @@ class _Step1Name extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Center(child: HandleBar()),
+          const SizedBox(height: 8),
           const FadeAnimation(
             delayInMs: 0,
             child: _StepTitle(
@@ -638,6 +643,8 @@ class _Step2Gender extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Center(child: HandleBar()),
+          const SizedBox(height: 8),
           FadeAnimation(
             delayInMs: 0,
             child: _StepTitle(
@@ -811,6 +818,8 @@ class _Step3Birthday extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Center(child: HandleBar()),
+          const SizedBox(height: 8),
           FadeAnimation(
             delayInMs: 0,
             child: _StepTitle(
@@ -827,23 +836,31 @@ class _Step3Birthday extends StatelessWidget {
             child: Container(
               height: OnboardingConstants.pickerCardHeight,
               decoration: BoxDecoration(
-                color:        Colors.white,
                 borderRadius: BorderRadius.circular(
                     OnboardingConstants.pickerCardRadius),
-                boxShadow:    AppTheme.heavyShadow,
+                boxShadow: AppTheme.heavyShadow,
               ),
-              child: ClipRRect(
+              child: GlassContainer(
+                variant: GlassVariant.light,
+                blur: 8,
+                opacity: 0.92,
                 borderRadius: BorderRadius.circular(
                     OnboardingConstants.pickerCardRadius),
-                child: CupertinoDatePicker(
-                  mode:            CupertinoDatePickerMode.date,
-                  initialDateTime: dob,
-                  minimumDate:     DateTime(1950),
-                  maximumDate:     DateTime(DateTime.now().year - 18),
-                  onDateTimeChanged: (d) {
-                    HapticUtils.selectionClick();
-                    onChanged(d);
-                  },
+                padding: EdgeInsets.zero,
+                showBorder: false,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(
+                      OnboardingConstants.pickerCardRadius),
+                  child: CupertinoDatePicker(
+                    mode:            CupertinoDatePickerMode.date,
+                    initialDateTime: dob,
+                    minimumDate:     DateTime(1950),
+                    maximumDate:     DateTime(DateTime.now().year - 18),
+                    onDateTimeChanged: (d) {
+                      HapticUtils.selectionClick();
+                      onChanged(d);
+                    },
+                  ),
                 ),
               ),
             ),
@@ -915,6 +932,8 @@ class _Step4Height extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Center(child: HandleBar()),
+          const SizedBox(height: 8),
           FadeAnimation(
             delayInMs: 0,
             child: _StepTitle(
@@ -931,12 +950,19 @@ class _Step4Height extends StatelessWidget {
             child: Container(
               height: OnboardingConstants.heightPickerCardHeight,
               decoration: BoxDecoration(
-                color:        Colors.white,
                 borderRadius: BorderRadius.circular(
                     OnboardingConstants.pickerCardRadius),
-                boxShadow:    AppTheme.heavyShadow,
+                boxShadow: AppTheme.heavyShadow,
               ),
-              child: Row(
+              child: GlassContainer(
+                variant: GlassVariant.light,
+                blur: 8,
+                opacity: 0.92,
+                borderRadius: BorderRadius.circular(
+                    OnboardingConstants.pickerCardRadius),
+                padding: EdgeInsets.zero,
+                showBorder: false,
+                child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   SizedBox(
@@ -1002,6 +1028,7 @@ class _Step4Height extends StatelessWidget {
               ),
             ),
           ),
+          ),
 
           const Spacer(),
 
@@ -1054,6 +1081,8 @@ class _Step5Community extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Center(child: HandleBar()),
+          const SizedBox(height: 8),
           FadeAnimation(
             delayInMs: 0,
             child: _StepTitle(
@@ -1073,18 +1102,15 @@ class _Step5Community extends StatelessWidget {
           const SizedBox(height: 10),
           FadeAnimation(
             delayInMs: 100,
-            child: Container(
+            child: GlassContainer(
+              variant: GlassVariant.brand,
+              blur: 6,
+              opacity: 0.07,
+              borderRadius: BorderRadius.circular(
+                  OnboardingConstants.communityChipRadius),
               padding: const EdgeInsets.symmetric(
                   horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(
-                    OnboardingConstants.communityChipRadius),
-                border: Border.all(
-                  color: AppTheme.brandPrimary.withValues(alpha: 0.35),
-                  width: 1.5,
-                ),
-              ),
+              showBorder: true,
               child: const Row(
                 children: [
                   Icon(Icons.verified_rounded,
@@ -1161,6 +1187,8 @@ class _Step6Photo extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          const Center(child: HandleBar()),
+          const SizedBox(height: 8),
           FadeAnimation(
             delayInMs: 0,
             child: Align(

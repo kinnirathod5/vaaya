@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/custom_toast.dart';
+import '../../../../shared/animations/fade_animation.dart';
 
 // ============================================================
 // 🌸 SPLASH SCREEN — v3.0
@@ -188,8 +190,12 @@ class _SplashScreenState extends State<SplashScreen>
     if (_skipped) return;
     _skipped = true;
     if (!mounted) return;
-    // TODO: FirebaseAuth.instance.currentUser != null → go('/dashboard')
-    context.go('/login');
+    try {
+      // TODO: FirebaseAuth.instance.currentUser != null → go('/dashboard')
+      context.go('/login');
+    } catch (e) {
+      CustomToast.error(context, 'Failed to start. Please restart the app.');
+    }
   }
 
   @override
@@ -223,7 +229,11 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildLogo(),
+                  FadeAnimation(
+                    delayInMs: 600,
+                    direction: FadeDirection.none,
+                    child: _buildLogo(),
+                  ),
                   const SizedBox(height: 28),
                   _buildAppName(),
                   const SizedBox(height: 10),

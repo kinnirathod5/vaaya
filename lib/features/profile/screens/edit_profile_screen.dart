@@ -3,11 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_assets.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/custom_toast.dart';
 import '../../../../core/utils/haptic_utils.dart';
 import '../../../../shared/animations/fade_animation.dart';
+import '../../../../shared/widgets/custom_app_bar.dart';
+import '../../../../shared/widgets/custom_chip.dart';
 import '../../../../shared/widgets/custom_network_image.dart';
 import '../../../../shared/widgets/custom_textfield.dart';
+import '../../../../shared/widgets/primary_button.dart';
+import '../../../../shared/widgets/section_header.dart';
 
 // ============================================================
 // ✏️ EDIT PROFILE SCREEN — Redesigned
@@ -143,8 +149,8 @@ class _EditProfileScreenState extends State<EditProfileScreen>
 
   // Photos
   final List<String> _photos = [
-    'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+    AppAssets.dummyMale1,
+    AppAssets.dummyMale2,
   ];
 
   // ── Tab config ────────────────────────────────────────────
@@ -199,21 +205,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     if (!mounted) return;
     setState(() { _isSaving = false; _hasChanges = false; });
     HapticUtils.heavyImpact();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: const Row(
-        children: [
-          Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-          SizedBox(width: 10),
-          Text('Profile updated successfully',
-              style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600)),
-        ],
-      ),
-      backgroundColor: AppTheme.success,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      margin: const EdgeInsets.all(16),
-      duration: const Duration(seconds: 2),
-    ));
+    CustomToast.success(context, 'Profile updated successfully');
     context.pop();
   }
 
@@ -224,11 +216,17 @@ class _EditProfileScreenState extends State<EditProfileScreen>
 
     return Scaffold(
       backgroundColor: AppTheme.bgScaffold,
+      appBar: CustomAppBar(
+        title: 'Edit Profile',
+        subtitle: 'Keep your info up to date',
+        onBackTap: () => _hasChanges ? _showDiscardDialog() : context.pop(),
+        actions: [_buildUnsavedBadge()],
+      ),
       body: SafeArea(
+        top: false,
         child: Column(
           children: [
-            _buildHeader(),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             _buildTabBar(),
             const SizedBox(height: 4),
             Expanded(
@@ -252,87 +250,40 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     );
   }
 
-  // ── Header ────────────────────────────────────────────────
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-      child: Row(
-        children: [
-          // Back
-          Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            elevation: 0,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () {
-                HapticUtils.lightImpact();
-                _hasChanges ? _showDiscardDialog() : context.pop();
-              },
-              child: Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.grey.shade200),
-                  boxShadow: AppTheme.softShadow,
-                ),
-                child: const Icon(Icons.arrow_back_ios_new_rounded,
-                    color: AppTheme.brandDark, size: 16),
+  // ── Unsaved badge (action for CustomAppBar) ──────────────
+  Widget _buildUnsavedBadge() {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      child: _hasChanges
+          ? Container(
+        key: const ValueKey('unsaved'),
+        margin: const EdgeInsets.only(right: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF3CD),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFFFE083)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6, height: 6,
+              decoration: const BoxDecoration(
+                color: Color(0xFFD97706),
+                shape: BoxShape.circle,
               ),
             ),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Edit Profile', style: TextStyle(
-                  fontFamily: 'Cormorant Garamond',
-                  fontSize: 26, fontWeight: FontWeight.w700,
-                  color: AppTheme.brandDark, letterSpacing: -0.3, height: 1.1,
-                )),
-                Text('Keep your info up to date', style: TextStyle(
-                  fontFamily: 'Poppins', fontSize: 11,
-                  color: Color(0xFF9CA3AF),
-                )),
-              ],
-            ),
-          ),
-          // Unsaved badge
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            child: _hasChanges
-                ? Container(
-              key: const ValueKey('unsaved'),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF3CD),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFFFE083)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6, height: 6,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFD97706),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  const Text('Unsaved', style: TextStyle(
-                    fontFamily: 'Poppins', fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFD97706),
-                  )),
-                ],
-              ),
-            )
-                : const SizedBox.shrink(key: ValueKey('saved')),
-          ),
-        ],
-      ),
+            const SizedBox(width: 6),
+            const Text('Unsaved', style: TextStyle(
+              fontFamily: 'Poppins', fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFD97706),
+            )),
+          ],
+        ),
+      )
+          : const SizedBox.shrink(key: ValueKey('saved')),
     );
   }
 
@@ -473,7 +424,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
           label: 'LANGUAGES',
           icon: Icons.translate_rounded,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _SubLabel('Languages Known'),
+            const SectionHeader(title: 'Languages Known', padding: EdgeInsets.zero),
             const SizedBox(height: 10),
             _ChipGrid(
               options: _languageOptions, selected: _languagesKnown,
@@ -481,7 +432,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
               onChanged: (v) { setState(() { _languagesKnown = v; _hasChanges = true; }); },
             ),
             const SizedBox(height: 14),
-            _SubLabel('Mother Tongue'),
+            const SectionHeader(title: 'Mother Tongue', padding: EdgeInsets.zero),
             const SizedBox(height: 10),
             _ChipGrid(
               options: _languageOptions, selected: [_motherTongue],
@@ -801,7 +752,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
           label: 'INTERESTS & HOBBIES',
           icon: Icons.interests_outlined,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _SubLabel('Interests  ·  Select all that apply'),
+            const SectionHeader(title: 'Interests  ·  Select all that apply', padding: EdgeInsets.zero),
             const SizedBox(height: 10),
             _ChipGrid(
               options: _interestOptions, selected: _interests,
@@ -809,7 +760,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
               onChanged: (v) { setState(() { _interests = v; _hasChanges = true; }); },
             ),
             const SizedBox(height: 16),
-            _SubLabel('Hobbies  ·  Select all that apply'),
+            const SectionHeader(title: 'Hobbies  ·  Select all that apply', padding: EdgeInsets.zero),
             const SizedBox(height: 10),
             _ChipGrid(
               options: _hobbyOptions, selected: _hobbies,
@@ -1208,47 +1159,13 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   Widget _buildSaveBtn(double bottomPad) {
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 10, 20, bottomPad + 16),
-      child: GestureDetector(
-        onTap: _isSaving ? null : _save,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          width: double.infinity, height: 54,
-          decoration: BoxDecoration(
-            gradient: _hasChanges
-                ? AppTheme.brandGradient
-                : LinearGradient(colors: [Colors.grey.shade300, Colors.grey.shade300]),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: _hasChanges ? AppTheme.primaryGlow : [],
-          ),
-          child: Center(
-            child: _isSaving
-                ? const SizedBox(
-              width: 22, height: 22,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            )
-                : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  _hasChanges ? Icons.check_rounded : Icons.check_circle_rounded,
-                  color: Colors.white, size: 18,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _hasChanges ? 'Save Changes' : 'All Saved',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins', fontSize: 15,
-                    fontWeight: FontWeight.w700, color: Colors.white,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+      child: PrimaryButton(
+        text:      _hasChanges ? 'Save Changes' : 'All Saved',
+        icon:      _hasChanges ? Icons.check_rounded : Icons.check_circle_rounded,
+        isLoading: _isSaving,
+        isEnabled: _hasChanges,
+        width:     double.infinity,
+        onTap:     _save,
       ),
     );
   }
@@ -1383,20 +1300,6 @@ class _LabelField extends StatelessWidget {
   }
 }
 
-// Sub-section label
-class _SubLabel extends StatelessWidget {
-  const _SubLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(text, style: TextStyle(
-      fontFamily: 'Poppins', fontSize: 11, fontWeight: FontWeight.w700,
-      color: Colors.grey.shade500,
-    ));
-  }
-}
-
 // Chip grid — single or multi select with check icon
 class _ChipGrid extends StatelessWidget {
   const _ChipGrid({
@@ -1418,7 +1321,9 @@ class _ChipGrid extends StatelessWidget {
       runSpacing: compact ? 8 : 9,
       children: options.map((opt) {
         final isSelected = selected.contains(opt);
-        return GestureDetector(
+        return CustomChip(
+          label:      opt,
+          isSelected: isSelected,
           onTap: () {
             HapticUtils.selectionClick();
             List<String> next;
@@ -1430,35 +1335,6 @@ class _ChipGrid extends StatelessWidget {
             }
             onChanged(next);
           },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? 12 : 14,
-              vertical: compact ? 6 : 8,
-            ),
-            decoration: BoxDecoration(
-              color: isSelected ? AppTheme.brandPrimary : Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isSelected ? AppTheme.brandPrimary : Colors.grey.shade200,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isSelected) ...[
-                  const Icon(Icons.check_rounded, color: Colors.white, size: 12),
-                  const SizedBox(width: 4),
-                ],
-                Text(opt, style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: compact ? 11 : 12,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? Colors.white : Colors.grey.shade600,
-                )),
-              ],
-            ),
-          ),
         );
       }).toList(),
     );

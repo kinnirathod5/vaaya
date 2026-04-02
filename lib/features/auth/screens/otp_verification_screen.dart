@@ -5,12 +5,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/custom_toast.dart';
 import '../../../../core/utils/haptic_utils.dart';
 import '../../../../shared/animations/fade_animation.dart';
 import '../../../../shared/widgets/auth_background.dart';
 import '../../../../shared/widgets/auth_bottom_text.dart';
-import '../../../../shared/widgets/auth_snackbar.dart';
 import '../../../../shared/widgets/handle_bar.dart';
+import '../../../../shared/widgets/primary_button.dart';
 
 // ============================================================
 // 🔐 OTP VERIFICATION SCREEN — v5.0
@@ -210,6 +211,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
         _isLoading = false;
         _errorMsg  = 'Incorrect OTP. Please try again.';
       });
+      CustomToast.error(context, 'Incorrect OTP. Please try again.');
       for (final c in _otpCtrl) c.clear();
       Future.delayed(const Duration(milliseconds: 100), () {
         if (mounted) _focusNodes[0].requestFocus();
@@ -228,7 +230,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
       if (mounted) _focusNodes[0].requestFocus();
     });
     if (!mounted) return;
-    AuthSnackbar.showSuccess(context, 'OTP sent again ✓');
+    CustomToast.success(context, 'OTP sent again ✓');
   }
 
   String _fmt(String p) =>
@@ -495,7 +497,22 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
 
                 FadeAnimation(
                   delayInMs: 340,
-                  child: _buildVerifyBtn(),
+                  child: Builder(
+                    builder: (context) {
+                      final otp = _otpCtrl.map((c) => c.text).join();
+                      final ok  = otp.length == 6 && !_isError;
+                      return PrimaryButton(
+                        text: 'Verify',
+                        trailingIcon: ok
+                            ? Icons.check_circle_rounded
+                            : null,
+                        isEnabled: ok,
+                        isLoading: _isLoading,
+                        height: AuthConstants.buttonHeight,
+                        onTap: ok ? _verify : null,
+                      );
+                    },
+                  ),
                 ),
                 const SizedBox(height: 20),
 
@@ -509,63 +526,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                   delayInMs: 460,
                   child: AuthBottomText(),
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ── Verify Button ─────────────────────────────────────────
-  Widget _buildVerifyBtn() {
-    final otp = _otpCtrl.map((c) => c.text).join();
-    final ok  = otp.length == 6 && !_isError;
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      width: double.infinity,
-      height: AuthConstants.buttonHeight,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: ok
-              ? [AppTheme.brandPrimary, const Color(0xFFFF6B84)]
-              : [Colors.grey.shade200, Colors.grey.shade200],
-        ),
-        borderRadius: BorderRadius.circular(AuthConstants.buttonRadius),
-        boxShadow: ok ? AppTheme.primaryGlow : [],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: ok ? _verify : null,
-          borderRadius: BorderRadius.circular(AuthConstants.buttonRadius),
-          child: Center(
-            child: _isLoading
-                ? const SizedBox(
-              width: 22, height: 22,
-              child: CircularProgressIndicator(
-                color: Colors.white, strokeWidth: 2.5,
-              ),
-            )
-                : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Verify',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 16,             // ← FIX 6: was 15
-                    fontWeight: FontWeight.w800, // ← FIX 6: was w700
-                    color: ok ? Colors.white : Colors.grey.shade400,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-                if (ok) ...[
-                  const SizedBox(width: 8),
-                  const Icon(Icons.check_circle_rounded,
-                      color: Colors.white, size: 18),
-                ],
               ],
             ),
           ),

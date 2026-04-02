@@ -3,10 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_assets.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/haptic_utils.dart';
+import '../../../../core/utils/custom_toast.dart';
 import '../../../../shared/animations/fade_animation.dart';
+import '../../../../shared/widgets/custom_chip.dart';
 import '../../../../shared/widgets/custom_network_image.dart';
+import '../../../../shared/widgets/glass_container.dart';
+import '../../../../shared/widgets/guest_lock_widget.dart';
+import '../../../../shared/widgets/match_badge.dart';
+import '../../../../shared/widgets/premium_lock_overlay.dart';
+import '../../../../shared/widgets/section_header.dart';
+import '../../../../shared/widgets/premium_icon_button.dart';
+import '../../../../shared/widgets/primary_button.dart';
 
 // ============================================================
 // 👤 USER DETAIL SCREEN — Redesigned
@@ -55,9 +65,9 @@ class _UserDetailScreenState extends State<UserDetailScreen>
     'memberSince':  'Jan 2024',
     'lastSeen':     'Active now',
     'photos': [
-      'https://images.unsplash.com/photo-1583089892943-e02e52f17d50?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1607746882042-944635dfe10e?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=800&q=80',
+      AppAssets.dummyFemale1,
+      AppAssets.dummyFemale2,
+      AppAssets.dummyFemale3,
     ],
     'interests': ['Cooking', 'Travelling', 'Reading', 'Music', 'Fitness', 'Yoga'],
     'compatibility': {
@@ -68,10 +78,12 @@ class _UserDetailScreenState extends State<UserDetailScreen>
     },
   };
 
-  int  _photoIndex   = 0;
-  bool _interestSent = false;
-  bool _isLiked      = false;
+  int  _photoIndex    = 0;
+  bool _interestSent  = false;
+  bool _isLiked       = false;
   bool _aboutExpanded = false;
+  // TODO: replace with auth state provider (Riverpod)
+  static const bool _isGuest = false;
 
   late final PageController      _photoCtrl;
   late final AnimationController _heartCtrl;
@@ -104,21 +116,7 @@ class _UserDetailScreenState extends State<UserDetailScreen>
     if (_interestSent) return;
     HapticUtils.heavyImpact();
     setState(() => _interestSent = true);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Row(
-        children: [
-          const Text('🌸 ', style: TextStyle(fontSize: 16)),
-          Text('Interest sent to ${_profile['name']}!',
-              style: const TextStyle(
-                  fontFamily: 'Poppins', fontWeight: FontWeight.w600, fontSize: 13)),
-        ],
-      ),
-      backgroundColor: AppTheme.brandPrimary,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      margin: const EdgeInsets.all(16),
-      duration: const Duration(seconds: 2),
-    ));
+    CustomToast.interestSent(context, _profile['name'] as String);
   }
 
   void _toggleLike() {
@@ -189,7 +187,9 @@ class _UserDetailScreenState extends State<UserDetailScreen>
                       const SizedBox(height: 20),
                       FadeAnimation(delayInMs: 250, child: _buildDetails()),
                       const SizedBox(height: 20),
-                      FadeAnimation(delayInMs: 300, child: _buildInterests()),
+                      FadeAnimation(delayInMs: 300, child: _buildContactDetails()),
+                      const SizedBox(height: 20),
+                      FadeAnimation(delayInMs: 350, child: _buildInterests()),
                       SizedBox(height: 110 + bottomPad),
                     ],
                   ),
@@ -206,6 +206,9 @@ class _UserDetailScreenState extends State<UserDetailScreen>
             bottom: 0, left: 0, right: 0,
             child: _buildBottomCTA(bottomPad),
           ),
+
+          // Guest lock — blocks detail sections for unauthenticated users
+          if (_isGuest) const GuestLockOverlay(),
         ],
       ),
     );
@@ -309,6 +312,26 @@ class _UserDetailScreenState extends State<UserDetailScreen>
                   ),
                 );
               }),
+            ),
+          ),
+
+          // Name / age glass badge (bottom left — above status badge)
+          Positioned(
+            bottom: 96, left: 20,
+            child: GlassContainer(
+              variant: GlassVariant.dark,
+              blur: 12,
+              opacity: 0.38,
+              borderRadius: BorderRadius.circular(12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Text(
+                '${_profile['name']}, ${_profile['age']}',
+                style: const TextStyle(
+                  fontFamily: 'Cormorant Garamond',
+                  fontSize: 20, fontWeight: FontWeight.w700,
+                  color: Colors.white, height: 1.1,
+                ),
+              ),
             ),
           ),
 
@@ -468,37 +491,10 @@ class _UserDetailScreenState extends State<UserDetailScreen>
           ),
           const SizedBox(width: 12),
 
-          // Match % badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppTheme.brandPrimary, const Color(0xFFFF6B84)],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(
-                color: AppTheme.brandPrimary.withValues(alpha: 0.30),
-                blurRadius: 14, offset: const Offset(0, 5),
-              )],
-            ),
-            child: Column(
-              children: [
-                Text(
-                  '${_profile['matchPct']}%',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins', fontSize: 20,
-                    fontWeight: FontWeight.w900, color: Colors.white, height: 1,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text('match', style: TextStyle(
-                  fontFamily: 'Poppins', fontSize: 9,
-                  color: Colors.white70, fontWeight: FontWeight.w600,
-                )),
-              ],
-            ),
+          // Match % hero badge — MatchBadge.large
+          MatchBadge(
+            percent: _profile['matchPct'] as int,
+            size: BadgeSize.large,
           ),
         ],
       ),
@@ -631,9 +627,10 @@ class _UserDetailScreenState extends State<UserDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(
+          SectionHeader(
             title: 'Compatibility',
             subtitle: '${_profile['matchPct']}% overall match',
+            padding: EdgeInsets.zero,
           ),
           const SizedBox(height: 12),
           Container(
@@ -731,7 +728,7 @@ class _UserDetailScreenState extends State<UserDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeader(title: 'About'),
+          SectionHeader(title: 'About', padding: EdgeInsets.zero),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(16),
@@ -805,7 +802,7 @@ class _UserDetailScreenState extends State<UserDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeader(title: 'Basic Details'),
+          SectionHeader(title: 'Basic Details', padding: EdgeInsets.zero),
           const SizedBox(height: 12),
           Wrap(
             spacing: 10, runSpacing: 10,
@@ -865,6 +862,86 @@ class _UserDetailScreenState extends State<UserDetailScreen>
     );
   }
 
+  // ── Contact Details (Premium locked) ─────────────────────
+  Widget _buildContactDetails() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SectionHeader(title: 'Contact Details', padding: EdgeInsets.zero),
+          const SizedBox(height: 12),
+          Stack(
+            children: [
+              // Placeholder rows (blurred by overlay)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade100),
+                  boxShadow: AppTheme.softShadow,
+                ),
+                child: Column(
+                  children: [
+                    Row(children: [
+                      Container(width: 32, height: 32,
+                        decoration: BoxDecoration(
+                          color: AppTheme.brandPrimary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.phone_outlined,
+                            size: 15, color: AppTheme.brandPrimary),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(height: 12, width: 140,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(6),
+                          )),
+                    ]),
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      Container(width: 32, height: 32,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.mail_outline_rounded,
+                            size: 15, color: Color(0xFF0EA5E9)),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(height: 12, width: 170,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(6),
+                          )),
+                    ]),
+                  ],
+                ),
+              ),
+              // Premium lock overlay
+              Positioned.fill(
+                child: PremiumLockOverlay(
+                  lockType: LockType.contact,
+                  title: 'Unlock Contact Details',
+                  subtitle: 'Upgrade to Premium to see phone & email',
+                  borderRadius: 16,
+                  blurSigma: 4,
+                  buttonLabel: 'Upgrade to Premium',
+                  onUnlockTap: () {
+                    HapticUtils.mediumImpact();
+                    context.push('/premium');
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Interests ─────────────────────────────────────────────
   Widget _buildInterests() {
     final interests = _profile['interests'] as List;
@@ -873,22 +950,14 @@ class _UserDetailScreenState extends State<UserDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeader(title: 'Interests & Hobbies'),
+          SectionHeader(title: 'Interests & Hobbies', padding: EdgeInsets.zero),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8, runSpacing: 8,
-            children: interests.map((i) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppTheme.brandPrimary.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                    color: AppTheme.brandPrimary.withValues(alpha: 0.15)),
-              ),
-              child: Text(i as String, style: const TextStyle(
-                fontFamily: 'Poppins', fontSize: 12,
-                fontWeight: FontWeight.w600, color: AppTheme.brandPrimary,
-              )),
+            children: interests.map((i) => CustomChip(
+              label: i as String,
+              variant: ChipVariant.subtle,
+              isSelected: true,
             )).toList(),
           ),
         ],
@@ -916,63 +985,36 @@ class _UserDetailScreenState extends State<UserDetailScreen>
           child: Row(
             children: [
               // Share
-              _CTAIconBtn(
+              PremiumIconButton(
                 icon: Icons.share_outlined,
+                shape: ButtonShape.rounded,
+                padding: 14.0,
                 onTap: () => HapticUtils.lightImpact(),
               ),
               const SizedBox(width: 10),
 
               // Message
-              _CTAIconBtn(
+              PremiumIconButton(
                 icon: Icons.chat_bubble_outline_rounded,
+                shape: ButtonShape.rounded,
+                padding: 14.0,
                 onTap: _startChat,
               ),
               const SizedBox(width: 12),
 
-              // Send Interest — primary
+              // Send Interest — primary CTA
               Expanded(
-                child: GestureDetector(
+                child: PrimaryButton(
+                  text: _interestSent ? 'Interest Sent' : 'Send Interest',
+                  icon: _interestSent
+                      ? Icons.check_circle_rounded
+                      : Icons.favorite_rounded,
+                  isEnabled: !_interestSent,
+                  variant: _interestSent
+                      ? ButtonVariant.success
+                      : ButtonVariant.filled,
+                  height: 52,
                   onTap: _interestSent ? null : _sendInterest,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    height: 52,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: _interestSent
-                            ? [Colors.grey.shade300, Colors.grey.shade300]
-                            : [AppTheme.brandPrimary, const Color(0xFFFF6B84)],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: _interestSent ? [] : [
-                        BoxShadow(
-                          color: AppTheme.brandPrimary.withValues(alpha: 0.32),
-                          blurRadius: 16, offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            _interestSent
-                                ? Icons.check_circle_rounded
-                                : Icons.favorite_rounded,
-                            color: Colors.white, size: 17,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _interestSent ? 'Interest Sent' : 'Send Interest',
-                            style: const TextStyle(
-                              fontFamily: 'Poppins', fontSize: 14,
-                              fontWeight: FontWeight.w700, color: Colors.white,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                 ),
               ),
             ],
@@ -988,39 +1030,7 @@ class _UserDetailScreenState extends State<UserDetailScreen>
 // PRIVATE HELPERS
 // ══════════════════════════════════════════════════════════════
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, this.subtitle});
-  final String title;
-  final String? subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(title, style: const TextStyle(
-          fontFamily: 'Poppins', fontSize: 15,
-          fontWeight: FontWeight.w800, color: AppTheme.brandDark,
-          letterSpacing: -0.2,
-        )),
-        if (subtitle != null) ...[
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: AppTheme.brandPrimary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(subtitle!, style: const TextStyle(
-              fontFamily: 'Poppins', fontSize: 10,
-              fontWeight: FontWeight.w700, color: AppTheme.brandPrimary,
-            )),
-          ),
-        ],
-      ],
-    );
-  }
-}
+// _SectionHeader removed — replaced by shared SectionHeader widget
 
 class _PillBadge extends StatelessWidget {
   const _PillBadge({required this.child});
@@ -1063,28 +1073,7 @@ class _GlassBtn extends StatelessWidget {
   }
 }
 
-class _CTAIconBtn extends StatelessWidget {
-  const _CTAIconBtn({required this.icon, required this.onTap});
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 52, height: 52,
-        decoration: BoxDecoration(
-          color: AppTheme.brandPrimary.withValues(alpha: 0.07),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-              color: AppTheme.brandPrimary.withValues(alpha: 0.14)),
-        ),
-        child: Icon(icon, color: AppTheme.brandPrimary, size: 20),
-      ),
-    );
-  }
-}
+// _CTAIconBtn removed — replaced by shared PremiumIconButton widget
 
 // More options bottom sheet
 class _MoreOptionsSheet extends StatelessWidget {

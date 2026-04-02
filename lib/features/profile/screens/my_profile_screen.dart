@@ -2,10 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_assets.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/custom_toast.dart';
 import '../../../../core/utils/haptic_utils.dart';
 import '../../../../shared/animations/fade_animation.dart';
 import '../../../../shared/widgets/custom_network_image.dart';
+import '../../../../shared/widgets/glass_container.dart';
+import '../../../../shared/widgets/premium_list_tile.dart';
+import '../../../../shared/widgets/primary_button.dart';
+import '../../../../shared/widgets/section_header.dart';
+import '../../../../shared/widgets/shimmer_loading_grid.dart';
 
 // ============================================================
 // 👤 MY PROFILE SCREEN — v3.0
@@ -117,7 +124,7 @@ const _dummyUser = _UserProfile(
   city: 'Mumbai',
   profession: 'Product Manager',
   imageUrl:
-  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80',
+  AppAssets.dummyMale1,
   isPremium: false,
   isVerified: true,
   completionPct: 72,
@@ -150,6 +157,7 @@ class _MyProfileScreenState extends State<MyProfileScreen>
   double _scrollOffset = 0;
 
   bool _isRefreshing = false;
+  bool _isLoading = true;
 
   final _UserProfile _user = _dummyUser;
   final _ProfileStats _stats = _dummyStats;
@@ -172,6 +180,10 @@ class _MyProfileScreenState extends State<MyProfileScreen>
     }
 
     _scrollCtrl.addListener(_onScroll);
+
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) setState(() => _isLoading = false);
+    });
 
     // ── FIX 6: sentence case titles ──────────────────────────
     _menuGroups = [
@@ -334,11 +346,19 @@ class _MyProfileScreenState extends State<MyProfileScreen>
 
                         FadeAnimation(
                           delayInMs: 130,
-                          child: Semantics(
-                            label:
-                            'Profile statistics: ${_stats.profileViews} views, ${_stats.matches} matches',
-                            child: _buildStatsRow(context),
-                          ),
+                          child: _isLoading
+                              ? const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 20),
+                                  child: ShimmerLoadingGrid(
+                                    mode: ShimmerMode.row,
+                                    itemCount: 4,
+                                  ),
+                                )
+                              : Semantics(
+                                  label:
+                                  'Profile statistics: ${_stats.profileViews} views, ${_stats.matches} matches',
+                                  child: _buildStatsRow(context),
+                                ),
                         ),
                         const SizedBox(height: 16),
 
@@ -460,18 +480,16 @@ class _MyProfileScreenState extends State<MyProfileScreen>
   // ── FIX 8: Profession has stronger visual weight
   // ══════════════════════════════════════════════════════════
   Widget _buildProfileHero(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: GlassContainer(
+        blur: 12,
+        opacity: 0.82,
         borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        boxShadow: AppTheme.softShadow,
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // ── Avatar ────────────────────────────────────────
           GestureDetector(
             onTap: () => _showFullScreenPhoto(context),
@@ -594,6 +612,7 @@ class _MyProfileScreenState extends State<MyProfileScreen>
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -1032,74 +1051,28 @@ class _MyProfileScreenState extends State<MyProfileScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section header — sentence case (FIX 6 applied in data)
-          Row(
-            children: [
-              Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  color: group.iconColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(7),
-                ),
-                child: Icon(group.icon, size: 12, color: group.iconColor),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                group.title,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade500,
-                  // Removed letterSpacing: 1.2 — was making ALL CAPS feel harsh
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Container(
-                  height: 0.5,
-                  color: Colors.grey.shade200,
-                ),
-              ),
-            ],
+          SectionHeader(
+            title: group.title,
+            icon: group.icon,
+            padding: EdgeInsets.zero,
           ),
           const SizedBox(height: 10),
 
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: AppTheme.softShadow,
-              border: Border.all(color: Colors.grey.shade100),
-            ),
-            child: Column(
-              children: group.items.asMap().entries.map((entry) {
-                final isLast = entry.key == group.items.length - 1;
-                final item = entry.value;
-                return Column(
-                  children: [
-                    _MenuTile(
-                      item: item,
-                      onTap: () {
-                        HapticUtils.lightImpact();
-                        if (item.route != null) {
-                          context.push(item.route!);
-                        } else {
-                          _showComingSoon(context);
-                        }
-                      },
-                    ),
-                    if (!isLast)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Divider(height: 1, color: Colors.grey.shade100),
-                      ),
-                  ],
-                );
-              }).toList(),
-            ),
-          ),
+          ...group.items.map((item) => PremiumListTile(
+            title: item.label,
+            subtitle: item.subtitle,
+            leadingIcon: item.icon,
+            iconColor: item.iconColor,
+            trailingValue: item.badge,
+            trailingValueColor: AppTheme.goldPrimary,
+            onTap: () {
+              if (item.route != null) {
+                context.push(item.route!);
+              } else {
+                _showComingSoon(context);
+              }
+            },
+          )),
         ],
       ),
     );
@@ -1112,48 +1085,12 @@ class _MyProfileScreenState extends State<MyProfileScreen>
   Widget _buildSignOutButton(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Semantics(
-        button: true,
-        label: 'Sign out of your account',
-        child: Material(
-          color: const Color(0xFFFFF1F3),
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            // ← FIX 3: was GestureDetector — no ripple
-            onTap: () {
-              HapticUtils.mediumImpact();
-              _showSignOutSheet(context);
-            },
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppTheme.brandPrimary.withValues(alpha: 0.18),
-                ),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.logout_rounded,
-                      size: 17, color: AppTheme.brandPrimary),
-                  SizedBox(width: 8),
-                  Text(
-                    'Sign Out',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.brandPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+      child: PrimaryButton(
+        text: 'Sign Out',
+        icon: Icons.logout_rounded,
+        variant: ButtonVariant.outlined,
+        height: 50,
+        onTap: () => _showSignOutSheet(context),
       ),
     );
   }
@@ -1180,24 +1117,7 @@ class _MyProfileScreenState extends State<MyProfileScreen>
   }
 
   void _showComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Coming soon!',
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: AppTheme.brandDark,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 1),
-      ),
-    );
+    CustomToast.info(context, 'Coming soon!');
   }
 }
 
@@ -1403,100 +1323,6 @@ class _MilestoneDot extends StatelessWidget {
   }
 }
 
-class _MenuTile extends StatelessWidget {
-  const _MenuTile({required this.item, required this.onTap});
-
-  final _MenuItemData item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: item.iconColor.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(item.icon, size: 18, color: item.iconColor),
-              ),
-              const SizedBox(width: 14),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.label,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.brandDark,
-                      ),
-                    ),
-                    if (item.subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        item.subtitle!,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: Colors.grey.shade400,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (item.badge != null) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppTheme.goldLight, Color(0xFFC9962A)],
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        item.badge!,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 8,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  Icon(Icons.arrow_forward_ios_rounded,
-                      size: 13, color: Colors.grey.shade300),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _SignOutSheet extends StatelessWidget {
   const _SignOutSheet({required this.onConfirm});
 
@@ -1568,46 +1394,20 @@ class _SignOutSheet extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Colors.grey.shade300),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: Text(
-                    'Cancel',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w700,
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
+                child: PrimaryButton(
+                  text: 'Cancel',
+                  variant: ButtonVariant.ghost,
+                  height: 50,
+                  onTap: () => Navigator.pop(context),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: ElevatedButton(
-                  onPressed: onConfirm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.brandPrimary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: const Text(
-                    'Sign Out',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
-                    ),
-                  ),
+                child: PrimaryButton(
+                  text: 'Sign Out',
+                  variant: ButtonVariant.filled,
+                  height: 50,
+                  onTap: onConfirm,
                 ),
               ),
             ],

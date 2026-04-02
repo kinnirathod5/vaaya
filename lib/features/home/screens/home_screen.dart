@@ -4,12 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/haptic_utils.dart';
 import '../../../../core/constants/app_assets.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/custom_toast.dart';
+import '../../../../core/utils/haptic_utils.dart';
 import '../../../../shared/animations/fade_animation.dart';
 import '../../../../shared/widgets/custom_network_image.dart';
+import '../../../../shared/widgets/empty_state_widget.dart';
+import '../../../../shared/widgets/guest_lock_widget.dart';
+import '../../../../shared/widgets/match_badge.dart';
 import '../../../../shared/widgets/premium_avatar.dart';
+import '../../../../shared/widgets/premium_glass_app_bar.dart';
+import '../../../../shared/widgets/premium_icon_button.dart';
+import '../../../../shared/widgets/premium_match_card.dart';
+import '../../../../shared/widgets/section_header.dart';
+import '../../../../shared/widgets/shimmer_loading_grid.dart';
 
 // ============================================================
 // 🏠 HOME SCREEN — v9.2
@@ -195,23 +204,6 @@ const _dummyStories = [
   ),
 ];
 
-const _thoughts = [
-  (
-  quote: 'Vivah ek pavitr bandhan hai,\ndono aatmaon ka milan.',
-  author: 'Banjara Proverb',
-  emoji: '🌸',
-  ),
-  (
-  quote: 'Sachi shaadi woh hoti hai jahan\ndono ek doosre ke liye bane hain.',
-  author: 'Ancient Wisdom',
-  emoji: '💫',
-  ),
-  (
-  quote: 'Gotra se pehchaan, dil se rishta,\naur Vaaya se milaan.',
-  author: 'Banjara Vivah',
-  emoji: '🏡',
-  ),
-];
 
 // ──────────────────────────────────────────────────────────────
 // SCREEN
@@ -232,16 +224,17 @@ class _HomeScreenState extends State<HomeScreen>
 
   late final AnimationController _goldShimmerCtrl;
   late final AnimationController _pulsCtrl;
-  late final Animation<double> _scaleAnim;
   late final Animation<double> _borderAnim;
 
   late final ScrollController _scrollCtrl;
   bool _headerCollapsed = false;
+  bool _isInitialLoading = true;
+  // TODO: replace with auth state provider (Riverpod)
+  static const bool _isGuest = false;
 
   final _CurrentUser _user = _dummyUser;
   late final String _greetingText;
   late final bool _isEvening;
-  late final int _thoughtIndex;
 
   // ── FIX 1: Store listener references — proper cleanup ──────
   late final VoidCallback _pageListener;
@@ -281,9 +274,6 @@ class _HomeScreenState extends State<HomeScreen>
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
 
-    _scaleAnim = Tween<double>(begin: 1.0, end: 1.018).animate(
-      CurvedAnimation(parent: _pulsCtrl, curve: Curves.easeInOut),
-    );
     _borderAnim = Tween<double>(begin: 0.12, end: 0.40).animate(
       CurvedAnimation(parent: _pulsCtrl, curve: Curves.easeInOut),
     );
@@ -301,7 +291,10 @@ class _HomeScreenState extends State<HomeScreen>
 
     _greetingText = _computeGreeting();
     _isEvening    = DateTime.now().hour >= 17;
-    _thoughtIndex = DateTime.now().weekday % _thoughts.length;
+
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) setState(() => _isInitialLoading = false);
+    });
   }
 
   @override
@@ -387,52 +380,30 @@ class _HomeScreenState extends State<HomeScreen>
   // ──────────────────────────────────────────────────────────
   // MINI STICKY HEADER
   // ──────────────────────────────────────────────────────────
+  // ── Mini sticky header — PremiumGlassAppBar (shared widget) ─
   Widget _buildMiniHeader(BuildContext context) {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.88),
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
-            ),
-          ),
-          child: Row(
-            children: [
-              PremiumAvatar(imageUrl: _user.image, size: 34, isOnline: true),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Hi, ${_user.name.split(' ').first} 👋',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.brandDark,
-                  ),
-                ),
-              ),
-              // ── FIX 3: Material + InkWell in mini header ──
-              _HeaderBtn(
-                icon: Icons.search_rounded,
-                label: 'Search',
-                size: 36,
-                onTap: () { HapticUtils.lightImpact(); context.push('/matches'); },
-              ),
-              const SizedBox(width: 8),
-              _HeaderBtn(
-                icon: Icons.notifications_rounded,
-                label: 'Notifications',
-                size: 36,
-                badge: _user.unreadNotifications,
-                onTap: () { HapticUtils.mediumImpact(); context.push('/notifications'); },
-              ),
-            ],
-          ),
+    return PremiumGlassAppBar(
+      title: 'Hi, ${_user.name.split(' ').first} 👋',
+      centerTitle: false,
+      leading: PremiumAvatar(imageUrl: _user.image, size: 34, isOnline: true),
+      actions: [
+        PremiumIconButton(
+          icon: Icons.search_rounded,
+          shape: ButtonShape.rounded,
+          iconSize: 16,
+          padding: 10,
+          onTap: () => context.push('/matches'),
         ),
-      ),
+        const SizedBox(width: 8),
+        PremiumIconButton(
+          icon: Icons.notifications_rounded,
+          shape: ButtonShape.rounded,
+          iconSize: 16,
+          padding: 10,
+          badge: _user.unreadNotifications,
+          onTap: () => context.push('/notifications'),
+        ),
+      ],
     );
   }
 
@@ -455,6 +426,7 @@ class _HomeScreenState extends State<HomeScreen>
     s.addAll(_sectionActiveNow(context, delay));      delay += 50;
     s.addAll(_sectionSpotlight(context, delay));      delay += 60;
     s.addAll(_sectionDailyMatches(context, delay));   delay += 50;
+    s.addAll(_sectionLikedYou(context, delay));       delay += 40;
     s.addAll(_sectionVipBanner(context, delay));      delay += 40;
     s.addAll(_sectionPremiumMatches(context, delay)); delay += 40;
 
@@ -471,7 +443,7 @@ class _HomeScreenState extends State<HomeScreen>
     const SizedBox(height: 28),
     FadeAnimation(
       delayInMs: delay,
-      child: _AccentSectionLabel(
+      child: SectionHeader(
         title: 'Spotlight',
         subtitle: 'Highly compatible profiles',
         icon: Icons.auto_awesome_rounded,
@@ -493,7 +465,7 @@ class _HomeScreenState extends State<HomeScreen>
     const SizedBox(height: 28),
     FadeAnimation(
       delayInMs: delay,
-      child: _AccentSectionLabel(
+      child: SectionHeader(
         title: 'Daily Matches',
         subtitle: 'Refreshed every morning for you',
         actionText: 'See All',
@@ -503,9 +475,35 @@ class _HomeScreenState extends State<HomeScreen>
     const SizedBox(height: 16),
     FadeAnimation(
       delayInMs: delay + 20,
-      child: _buildDailyMatchesRow(ctx),
+      child: _isInitialLoading
+          ? const ShimmerLoadingGrid(mode: ShimmerMode.row, itemCount: 4)
+          : _dummyDaily.isEmpty
+              ? EmptyStateWidget.noMatches(onRefresh: () => ctx.push('/matches'))
+              : _buildDailyMatchesRow(ctx),
     ),
   ];
+
+  List<Widget> _sectionLikedYou(BuildContext ctx, int delay) {
+    if (_isPremium) return const [];
+    return [
+      const SizedBox(height: 24),
+      FadeAnimation(
+        delayInMs: delay,
+        child: _isGuest
+            ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SizedBox(
+                  height: 96,
+                  child: GuestLockedCard(
+                    borderRadius: AppTheme.cardRadius,
+                    child: _buildLikedYouBanner(ctx),
+                  ),
+                ),
+              )
+            : _buildLikedYouBanner(ctx),
+      ),
+    ];
+  }
 
   List<Widget> _sectionActiveNow(BuildContext ctx, int delay) => [
     const SizedBox(height: 28),
@@ -527,7 +525,7 @@ class _HomeScreenState extends State<HomeScreen>
     const SizedBox(height: 28),
     FadeAnimation(
       delayInMs: delay,
-      child: _AccentSectionLabel(
+      child: SectionHeader(
         title: 'Premium Matches',
         subtitle: _isPremium ? 'Verified premium members' : 'Upgrade to unlock',
         icon: Icons.diamond_rounded,
@@ -547,7 +545,7 @@ class _HomeScreenState extends State<HomeScreen>
     const SizedBox(height: 28),
     FadeAnimation(
       delayInMs: delay,
-      child: _AccentSectionLabel(
+      child: SectionHeader(
         title: 'Success Stories',
         subtitle: 'Couples who found love on Banjara Vivah',
         icon: Icons.favorite_rounded,
@@ -668,23 +666,17 @@ class _HomeScreenState extends State<HomeScreen>
                   ],
                 ),
               ),
-              _HeaderBtn(
+              PremiumIconButton(
                 icon: Icons.search_rounded,
-                label: 'Search',
-                onTap: () {
-                  HapticUtils.lightImpact();
-                  context.push('/matches');
-                },
+                shape: ButtonShape.rounded,
+                onTap: () => context.push('/matches'),
               ),
               const SizedBox(width: 8),
-              _HeaderBtn(
+              PremiumIconButton(
                 icon: Icons.notifications_rounded,
-                label: 'Notifications',
+                shape: ButtonShape.rounded,
                 badge: _user.unreadNotifications,
-                onTap: () {
-                  HapticUtils.mediumImpact();
-                  context.push('/notifications');
-                },
+                onTap: () => context.push('/notifications'),
               ),
             ],
           ),
@@ -782,302 +774,6 @@ class _HomeScreenState extends State<HomeScreen>
       ],
     );
   }
-  // ══════════════════════════════════════════════════════════
-  // 2. NEW MATCHES BANNER — FIX 5: Material + InkWell
-  // ══════════════════════════════════════════════════════════
-  Widget _buildNewMatchesBanner(BuildContext context) {
-    final count = _user.newMatchesSinceYesterday;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: AnimatedBuilder(
-        animation: _pulsCtrl,
-        builder: (_, child) => Transform.scale(
-          scale: _scaleAnim.value,
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              onTap: () {
-                HapticUtils.mediumImpact();
-                context.push('/matches');
-              },
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 13),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [
-                    AppTheme.brandPrimary.withValues(alpha: 0.09),
-                    AppTheme.brandPrimary.withValues(alpha: 0.03),
-                  ]),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppTheme.brandPrimary.withValues(
-                        alpha: _borderAnim.value),
-                    width: 1.5,
-                  ),
-                ),
-                child: child,
-              ),
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                gradient: AppTheme.brandGradient,
-                shape: BoxShape.circle,
-                boxShadow: AppTheme.primaryGlow,
-              ),
-              child: Center(
-                child: Text(
-                  '$count',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '$count new match${count > 1 ? 'es' : ''} since yesterday!',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.brandDark,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Tap to view your matches',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 14,
-              color: AppTheme.brandPrimary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════════
-  // 3. PROFILE COMPLETION NUDGE — FIX 5: Material + InkWell
-  // ══════════════════════════════════════════════════════════
-  Widget _buildCompletionNudge(BuildContext context) {
-    final pct = _user.profileCompletionPct;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          onTap: () {
-            HapticUtils.lightImpact();
-            context.push('/edit_profile');
-          },
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: AppTheme.softShadow,
-              border: Border.all(
-                color: AppTheme.brandPrimary.withValues(alpha: 0.10),
-              ),
-            ),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 48, height: 48,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        value: pct / 100,
-                        strokeWidth: 3.5,
-                        backgroundColor: Colors.grey.shade100,
-                        valueColor: const AlwaysStoppedAnimation(
-                          AppTheme.brandPrimary,
-                        ),
-                        strokeCap: StrokeCap.round,
-                      ),
-                      Text(
-                        '$pct%',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.brandPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Complete your profile',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.brandDark,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Get ${(100 - pct) < 20 ? '3x' : '5x'} more matches',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 11,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: pct / 100,
-                          minHeight: 3,
-                          backgroundColor: Colors.grey.shade100,
-                          valueColor: const AlwaysStoppedAnimation(
-                            AppTheme.brandPrimary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 13,
-                  color: AppTheme.brandPrimary,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════════
-  // 4. THOUGHT OF THE DAY
-  // ══════════════════════════════════════════════════════════
-  Widget _buildThoughtOfDay(BuildContext context) {
-    final thought = _thoughts[_thoughtIndex];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppTheme.brandPrimary.withValues(alpha: 0.05),
-              AppTheme.goldPrimary.withValues(alpha: 0.06),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: AppTheme.goldPrimary.withValues(alpha: 0.18),
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: AppTheme.goldPrimary.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(thought.emoji,
-                    style: const TextStyle(fontSize: 22)),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppTheme.goldPrimary.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'THOUGHT OF THE DAY',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 8,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.goldPrimary,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    thought.quote,
-                    style: const TextStyle(
-                      fontFamily: 'Cormorant Garamond',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.brandDark,
-                      height: 1.45,
-                      letterSpacing: -0.1,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '— ${thought.author}',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      color: Colors.grey.shade400,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ══════════════════════════════════════════════════════════
   // 5. ACTIVE NOW
   // FIX 2: AnimatedBuilder (_, _) → (_, __)
@@ -1182,137 +878,181 @@ class _HomeScreenState extends State<HomeScreen>
             padding: const EdgeInsets.symmetric(horizontal: 20),
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            itemCount: _dummyActive.length + 1,
-            itemBuilder: (_, index) {
-              if (index == 0) return _buildLikedYouCard(context);
-              return _buildActiveAvatar(
-                  context, _dummyActive[index - 1]);
-            },
+            itemCount: _dummyActive.length,
+            itemBuilder: (_, index) =>
+                _buildActiveAvatar(context, _dummyActive[index]),
           ),
         ),
       ],
     );
   }
 
-  // ── Liked You Card ─────────────────────────────────────
-  // Gold pulsing ring, blurred previews, heart + count
-  Widget _buildLikedYouCard(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        HapticUtils.mediumImpact();
-        context.push('/premium');
-      },
-      child: Container(
-        margin: const EdgeInsets.only(right: 18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Gold pulsing ring container
-            AnimatedBuilder(
-              animation: _pulsCtrl,
-              builder: (_, child) {
-                final glow = _borderAnim.value;
-                return Container(
-                  width: 68, height: 68,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    // 2px gap between ring and photo
-                    border: Border.all(
-                      color: AppTheme.goldPrimary.withValues(
-                          alpha: 0.45 + glow * 0.45),
-                      width: 2.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.goldPrimary
-                            .withValues(alpha: glow * 0.45),
-                        blurRadius: 12,
-                        spreadRadius: 0,
+  // ── Liked You Banner ───────────────────────────────────
+  // Full-width animated gold banner — placed after daily matches
+  // Blurred face previews + dark/gold gradient + pulsing border
+  Widget _buildLikedYouBanner(BuildContext context) {
+    final count = _user.likedYouCount;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        child: InkWell(
+          onTap: () {
+            HapticUtils.mediumImpact();
+            context.push('/premium');
+          },
+          borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+          child: AnimatedBuilder(
+            animation: _pulsCtrl,
+            builder: (_, child) => Container(
+              height: 96,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+                border: Border.all(
+                  color: AppTheme.goldPrimary.withValues(
+                      alpha: 0.38 + _borderAnim.value * 0.42),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.goldPrimary
+                        .withValues(alpha: _borderAnim.value * 0.22),
+                    blurRadius: 16,
+                    spreadRadius: 0,
+                  ),
+                ],
+              ),
+              child: child,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppTheme.cardRadius - 1.5),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Blurred face previews as background
+                  Row(
+                    children: _likedYouPreviews.map((url) => Expanded(
+                      child: ImageFiltered(
+                        imageFilter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: CustomNetworkImage(imageUrl: url, borderRadius: 0),
                       ),
-                    ],
+                    )).toList(),
                   ),
-                  // Inner circle with 2px white gap
-                  child: Padding(
-                    padding: const EdgeInsets.all(2.5),
-                    child: child,
+                  // Dark + gold gradient overlay
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF1A0814).withValues(alpha: 0.92),
+                          AppTheme.goldPrimary.withValues(alpha: 0.55),
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                    ),
                   ),
-                );
-              },
-              child: ClipOval(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Blurred face previews layered
-                    for (int i = 0; i < _likedYouPreviews.length; i++)
-                      Positioned.fill(
-                        child: Opacity(
-                          opacity: i == 0
-                              ? 1.0
-                              : i == 1
-                              ? 0.55
-                              : 0.30,
-                          child: ImageFiltered(
-                            imageFilter: ImageFilter.blur(
-                                sigmaX: 7, sigmaY: 7),
-                            child: CustomNetworkImage(
-                              imageUrl: _likedYouPreviews[i],
-                              borderRadius: 0,
-                            ),
+                  // Content row
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 14),
+                    child: Row(
+                      children: [
+                        // Heart badge
+                        Container(
+                          width: 52, height: 52,
+                          decoration: BoxDecoration(
+                            gradient: AppTheme.goldGradient,
+                            shape: BoxShape.circle,
+                            boxShadow: AppTheme.goldGlow,
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              const Icon(
+                                Icons.favorite_rounded,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                              Positioned(
+                                bottom: 4, right: 3,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.brandPrimary,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '$count',
+                                    style: const TextStyle(
+                                      fontFamily: 'Poppins',
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    // Gradient overlay — dark bottom, gold tint top
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.black.withValues(alpha: 0.55),
-                            AppTheme.goldPrimary
-                                .withValues(alpha: 0.30),
-                          ],
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
+                        const SizedBox(width: 14),
+                        // Text
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '$count people liked you',
+                                style: const TextStyle(
+                                  fontFamily: 'Cormorant Garamond',
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  height: 1.1,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'Upgrade to see who',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 11,
+                                  color: AppTheme.goldLight
+                                      .withValues(alpha: 0.85),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
-                    // Heart icon + count — centered
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.favorite_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        const SizedBox(height: 1),
-                        Text(
-                          '${_user.likedYouCount}',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
+                        // Arrow
+                        Container(
+                          width: 36, height: 36,
+                          decoration: BoxDecoration(
+                            color: AppTheme.goldPrimary
+                                .withValues(alpha: 0.25),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppTheme.goldLight
+                                  .withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.arrow_forward_ios_rounded,
                             color: Colors.white,
-                            height: 1.0,
+                            size: 14,
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 6),
-            // Label
-            Text(
-              'Liked You',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.goldPrimary,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -1322,12 +1062,16 @@ class _HomeScreenState extends State<HomeScreen>
   // Story-style: brand pink ring, 68px photo,
   // vivid green dot, name below
   Widget _buildActiveAvatar(BuildContext context, _ActiveUser user) {
-    return GestureDetector(
-      onTap: () {
-        HapticUtils.lightImpact();
-        context.push('/user_detail');
-      },
-      child: Container(
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(40),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(40),
+        onTap: () {
+          HapticUtils.lightImpact();
+          context.push('/user_detail');
+        },
+        child: Container(
         margin: const EdgeInsets.only(right: 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1408,6 +1152,7 @@ class _HomeScreenState extends State<HomeScreen>
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -1463,7 +1208,10 @@ class _HomeScreenState extends State<HomeScreen>
                     HapticUtils.lightImpact();
                     context.push('/user_detail');
                   },
-                  onLike: () { HapticUtils.heavyImpact(); },
+                  onLike: () {
+                    HapticUtils.heavyImpact();
+                    CustomToast.match(context, match.name.split(' ').first);
+                  },
                   onSkip: () {
                     HapticUtils.lightImpact();
                     if (_spotlightIndex < _dummySpotlight.length - 1) {
@@ -1473,7 +1221,11 @@ class _HomeScreenState extends State<HomeScreen>
                       );
                     }
                   },
-                  onInterest: () { HapticUtils.mediumImpact(); },
+                  onInterest: () {
+                    HapticUtils.mediumImpact();
+                    CustomToast.interestSent(
+                        context, match.name.split(' ').first);
+                  },
                 ),
               ),
             ),
@@ -1544,7 +1296,7 @@ class _HomeScreenState extends State<HomeScreen>
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Text(
-                              'VAAYA PREMIUM',
+                              'BANJARA VIVAH PREMIUM',
                               style: TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 9,
@@ -1659,22 +1411,36 @@ class _HomeScreenState extends State<HomeScreen>
     return SizedBox(
       height: 268,
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: _dummyDaily.length,
         itemBuilder: (_, index) {
+          final match = _dummyDaily[index];
+          final card = PremiumMatchCard(
+            name:       match.name.split(' ').first,
+            age:        match.age,
+            imageUrl:   match.image,
+            matchPct:   match.matchPct,
+            profession: match.profession,
+            city:       match.city,
+            isOnline:   match.isOnline,
+            onTap:      () => context.push('/user_detail'),
+            onLike:     () => CustomToast.interestSent(
+                context, match.name.split(' ').first),
+            onSkip:     () {},
+          );
           return FadeAnimation(
             delayInMs: index * 60,
-            child: _DailyMatchCard(
-              match: _dummyDaily[index],
-              onTap: () {
-                HapticUtils.lightImpact();
-                context.push('/user_detail');
-              },
-              onLike:     () { HapticUtils.heavyImpact(); },
-              onSkip:     () { HapticUtils.lightImpact(); },
-              onInterest: () { HapticUtils.mediumImpact(); },
+            child: Padding(
+              padding: const EdgeInsets.only(right: 14),
+              child: SizedBox(
+                width: 160,
+                // Guests see first 3 cards freely; beyond that — blurred lock
+                child: !_isPremium && index >= 3
+                    ? GuestLockedCard(borderRadius: 20, child: card)
+                    : card,
+              ),
             ),
           );
         },
@@ -1689,7 +1455,7 @@ class _HomeScreenState extends State<HomeScreen>
     return SizedBox(
       height: 204,
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: _dummyPremium.length + (_isPremium ? 0 : 1),
@@ -1727,7 +1493,7 @@ class _HomeScreenState extends State<HomeScreen>
     return SizedBox(
       height: 180,
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: _dummyStories.length,
@@ -1862,184 +1628,6 @@ class _StarPainter extends CustomPainter {
   bool shouldRepaint(_StarPainter old) => old.t != t;
 }
 
-// ── Accent section label ──────────────────────────────────────
-class _AccentSectionLabel extends StatelessWidget {
-  const _AccentSectionLabel({
-    required this.title,
-    this.subtitle,
-    this.icon,
-    this.actionText,
-    this.onActionTap,
-  });
-
-  final String title;
-  final String? subtitle;
-  final IconData? icon;
-  final String? actionText;
-  final VoidCallback? onActionTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 3, height: 28,
-            margin: const EdgeInsets.only(right: 10),
-            decoration: BoxDecoration(
-              gradient: AppTheme.brandGradient,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          if (icon != null) ...[
-            Icon(icon, size: 18, color: AppTheme.brandPrimary),
-            const SizedBox(width: 7),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontFamily: 'Cormorant Garamond',
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.brandDark,
-                    letterSpacing: -0.2,
-                    height: 1.1,
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle!,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (actionText != null && onActionTap != null)
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(8),
-                onTap: () {
-                  HapticUtils.lightImpact();
-                  onActionTap!();
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        actionText!,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.brandPrimary,
-                        ),
-                      ),
-                      const SizedBox(width: 3),
-                      const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 10,
-                        color: AppTheme.brandPrimary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Header button — FIX 3: Material + InkWell ────────────────
-class _HeaderBtn extends StatelessWidget {
-  const _HeaderBtn({
-    required this.icon,
-    required this.onTap,
-    this.label,
-    this.badge = 0,
-    this.size = 44,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final String? label;
-  final int badge;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: size, height: size,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.grey.shade200),
-                  boxShadow: AppTheme.softShadow,
-                ),
-                child: Icon(
-                  icon,
-                  color: AppTheme.brandDark,
-                  size: size * 0.45,
-                ),
-              ),
-              if (badge > 0)
-                Positioned(
-                  top: -2, right: -2,
-                  child: Container(
-                    width: 18, height: 18,
-                    decoration: const BoxDecoration(
-                      color: AppTheme.brandPrimary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        badge > 99 ? '99+' : '$badge',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ── VIP perk item ─────────────────────────────────────────────
 class _VipPerk extends StatelessWidget {
@@ -2173,35 +1761,7 @@ class _SpotlightCardState extends State<_SpotlightCard>
                 ),
                 Positioned(
                   top: 16, left: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: AppTheme.softShadow,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.local_fire_department_rounded,
-                          color: AppTheme.brandPrimary,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          '${m.matchPct}% Match',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            color: AppTheme.brandPrimary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  child: MatchBadge(percent: m.matchPct),
                 ),
                 Positioned(
                   top: 16, right: 16,
@@ -2416,305 +1976,6 @@ class _SpotlightChip extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-// DAILY MATCH CARD
-// ══════════════════════════════════════════════════════════════
-class _DailyMatchCard extends StatelessWidget {
-  const _DailyMatchCard({
-    required this.match,
-    required this.onTap,
-    required this.onLike,
-    required this.onSkip,
-    required this.onInterest,
-  });
-
-  final _DailyMatch match;
-  final VoidCallback onTap, onLike, onSkip, onInterest;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.only(right: 14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.10),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              CustomNetworkImage(imageUrl: match.image, borderRadius: 0),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.90),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 0.52],
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 10, right: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 7, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: match.isOnline
-                          ? AppTheme.onlineDot
-                          .withValues(alpha: 0.60)
-                          : Colors.white.withValues(alpha: 0.20),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 5, height: 5,
-                        decoration: BoxDecoration(
-                          color: match.isOnline
-                              ? AppTheme.onlineDot
-                              : Colors.grey.shade400,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        match.isOnline
-                            ? 'Online'
-                            : (match.lastActive ?? ''),
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                          color: match.isOnline
-                              ? AppTheme.onlineDot
-                              : Colors.white.withValues(alpha: 0.70),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 8, left: 8,
-                child: _ArcMatchRing(pct: match.matchPct, size: 38),
-              ),
-              Positioned(
-                bottom: 10, left: 12, right: 12,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${match.name.split(' ').first}, ${match.age}',
-                      style: const TextStyle(
-                        fontFamily: 'Cormorant Garamond',
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        height: 1.1,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      match.profession,
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        color: Colors.white.withValues(alpha: 0.65),
-                        fontSize: 10,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on_rounded,
-                          color: Colors.white.withValues(alpha: 0.50),
-                          size: 9,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          match.city,
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            color: Colors.white.withValues(alpha: 0.50),
-                            fontSize: 9,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        _QuickBtn(
-                          icon: Icons.close_rounded,
-                          color: Colors.white.withValues(alpha: 0.18),
-                          iconColor: Colors.white.withValues(alpha: 0.85),
-                          size: 30,
-                          onTap: onSkip,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: onInterest,
-                            child: Container(
-                              height: 30,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: Colors.white
-                                      .withValues(alpha: 0.25),
-                                ),
-                              ),
-                              child: const Center(
-                                child: Text(
-                                  'Send Interest',
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        _QuickBtn(
-                          icon: Icons.favorite_rounded,
-                          color: AppTheme.brandPrimary,
-                          iconColor: Colors.white,
-                          size: 34,
-                          onTap: onLike,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Arc match% ring ───────────────────────────────────────────
-class _ArcMatchRing extends StatelessWidget {
-  const _ArcMatchRing({required this.pct, required this.size});
-  final int pct;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size, height: size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          CustomPaint(
-            size: Size(size, size),
-            painter: _ArcPainter(pct / 100),
-          ),
-          Text(
-            '$pct',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ArcPainter extends CustomPainter {
-  _ArcPainter(this.value);
-  final double value;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final c = Offset(size.width / 2, size.height / 2);
-    final r = (size.width - 4) / 2;
-    final bg = Paint()
-      ..color = Colors.white.withValues(alpha: 0.20)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final fg = Paint()
-      ..color = AppTheme.brandPrimary
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(
-      Rect.fromCircle(center: c, radius: r),
-      -math.pi / 2, 2 * math.pi, false, bg,
-    );
-    canvas.drawArc(
-      Rect.fromCircle(center: c, radius: r),
-      -math.pi / 2, 2 * math.pi * value, false, fg,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_ArcPainter old) => old.value != value;
-}
-
-// ── Quick button ──────────────────────────────────────────────
-class _QuickBtn extends StatelessWidget {
-  const _QuickBtn({
-    required this.icon,
-    required this.color,
-    required this.iconColor,
-    required this.size,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final Color color, iconColor;
-  final double size;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size, height: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        child: Icon(icon, color: iconColor, size: size * 0.48),
       ),
     );
   }

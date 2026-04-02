@@ -5,12 +5,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/auth_constants.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/custom_toast.dart';
 import '../../../../core/utils/haptic_utils.dart';
 import '../../../../shared/animations/fade_animation.dart';
 import '../../../../shared/widgets/auth_background.dart';
 import '../../../../shared/widgets/auth_bottom_text.dart';
-import '../../../../shared/widgets/auth_snackbar.dart';
+import '../../../../shared/widgets/custom_textfield.dart';
 import '../../../../shared/widgets/handle_bar.dart';
+import '../../../../shared/widgets/primary_button.dart';
 
 // ============================================================
 // 📱 LOGIN SCREEN — v6.0
@@ -45,15 +47,11 @@ class _LoginScreenState extends State<LoginScreen>
   bool _isValidPhone = false;
 
   late final AnimationController _entryCtrl;
-  late final AnimationController _btnCtrl;
-  late final AnimationController _pulseCtrl;
 
   late final Animation<double> _logoOpacity;
   late final Animation<Offset>  _logoSlide;
   late final Animation<double> _contentOpacity;
   late final Animation<Offset>  _contentSlide;
-  late final Animation<double> _btnScale;
-  late final Animation<double> _pulseAnim;
 
   @override
   void initState() {
@@ -67,15 +65,6 @@ class _LoginScreenState extends State<LoginScreen>
       vsync: this,
       duration: AuthConstants.entryDuration,
     );
-    _btnCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 180),
-    );
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    );
-
     _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _entryCtrl,
@@ -112,13 +101,6 @@ class _LoginScreenState extends State<LoginScreen>
       curve: const Interval(0.30, 1.0, curve: Curves.easeOutCubic),
     ));
 
-    _btnScale = Tween<double>(begin: 1.0, end: 0.96).animate(
-      CurvedAnimation(parent: _btnCtrl, curve: Curves.easeIn),
-    );
-    _pulseAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
-
     Future.delayed(const Duration(milliseconds: 80), () {
       if (mounted) _entryCtrl.forward();
     });
@@ -131,8 +113,6 @@ class _LoginScreenState extends State<LoginScreen>
     _phoneCtrl.dispose();
     _phoneFocus.dispose();
     _entryCtrl.dispose();
-    _btnCtrl.dispose();
-    _pulseCtrl.dispose();
     super.dispose();
   }
 
@@ -141,9 +121,9 @@ class _LoginScreenState extends State<LoginScreen>
     if (valid != _isValidPhone) {
       setState(() => _isValidPhone = valid);
       if (valid) {
-        _pulseCtrl.repeat(reverse: true);
+        // valid phone — no pulse needed (PrimaryButton handles state)
       } else {
-        _pulseCtrl..stop()..reset();
+        // invalid phone — PrimaryButton disables itself automatically
       }
     }
   }
@@ -153,8 +133,6 @@ class _LoginScreenState extends State<LoginScreen>
     HapticUtils.mediumImpact();
     _phoneFocus.unfocus();
     setState(() => _isLoading = true);
-    await _btnCtrl.forward();
-    await _btnCtrl.reverse();
     try {
       // TODO: authProvider.sendOTP('+91${_phoneCtrl.text.trim()}')
       await Future.delayed(const Duration(milliseconds: 1500));
@@ -162,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen>
       context.push('/otp', extra: _phoneCtrl.text.trim());
     } catch (_) {
       if (!mounted) return;
-      AuthSnackbar.showError(context, 'Could not send OTP. Please try again.');
+      CustomToast.error(context, 'Could not send OTP. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -375,25 +353,30 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
                 const SizedBox(height: 16),
 
-                // ── FIX 1: Sentence case label ─────────────
+                // ── Mobile number label ─────────────────────
                 const Text(
-                  'Mobile number',        // was: 'MOBILE NUMBER'
+                  'Mobile number',
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF9CA3AF),
-                    letterSpacing: 0.4,   // was: 1.4 — too harsh
+                    letterSpacing: 0.4,
                   ),
                 ),
                 const SizedBox(height: 5),
 
                 FadeAnimation(
                   delayInMs: 300,
-                  child: _PhoneInputField(
+                  child: CustomTextField(
+                    hintText: '98765 43210',
                     controller: _phoneCtrl,
                     focusNode: _phoneFocus,
-                    isValid: _isValidPhone,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    maxLength: 10,
+                    textCapitalization: TextCapitalization.none,
+                    prefixIcon: Icons.phone_android_rounded,
                     onSubmitted: (_) => _onSendOTP(),
                   ),
                 ),
@@ -401,7 +384,16 @@ class _LoginScreenState extends State<LoginScreen>
 
                 FadeAnimation(
                   delayInMs: 380,
-                  child: _buildOTPBtn(),
+                  child: PrimaryButton(
+                    text: 'Send OTP',
+                    trailingIcon: _isValidPhone
+                        ? Icons.arrow_forward_rounded
+                        : null,
+                    isEnabled: _isValidPhone,
+                    isLoading: _isLoading,
+                    height: AuthConstants.buttonHeight,
+                    onTap: _onSendOTP,
+                  ),
                 ),
                 const SizedBox(height: 10),
 
@@ -442,90 +434,6 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ),
       ),
-    );
-  }
-
-  // ── OTP Button ────────────────────────────────────────────
-  Widget _buildOTPBtn() {
-    return ListenableBuilder(
-      listenable: Listenable.merge([_btnCtrl, _pulseCtrl]),
-      builder: (context, child) {
-        final glowAlpha  = _isValidPhone ? 0.18 + 0.16 * _pulseAnim.value : 0.0;
-        final blurRadius = _isValidPhone ? 14.0 + 10.0 * _pulseAnim.value : 0.0;
-
-        return Transform.scale(
-          scale: _btnScale.value,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 280),
-            width: double.infinity,
-            height: AuthConstants.buttonHeight,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: _isValidPhone
-                    ? [const Color(0xFFE8395A), const Color(0xFFFF7190)]
-                    : [Colors.grey.shade200, Colors.grey.shade200],
-              ),
-              borderRadius: BorderRadius.circular(AuthConstants.buttonRadius),
-              boxShadow: _isValidPhone
-                  ? [
-                BoxShadow(
-                  color: AppTheme.brandPrimary.withValues(alpha: glowAlpha),
-                  blurRadius: blurRadius,
-                  offset: const Offset(0, 5),
-                ),
-              ]
-                  : [],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: _isValidPhone ? _onSendOTP : null,
-                borderRadius: BorderRadius.circular(AuthConstants.buttonRadius),
-                splashColor: Colors.white.withValues(alpha: 0.12),
-                child: Center(
-                  child: _isLoading
-                      ? const SizedBox(
-                    width: 22, height: 22,
-                    child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2.5,
-                    ),
-                  )
-                      : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Send OTP',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 16,             // ← FIX 3: was 15
-                          fontWeight: FontWeight.w800, // ← FIX 3: was w700
-                          letterSpacing: 0.3,
-                          color: _isValidPhone
-                              ? Colors.white
-                              : Colors.grey.shade400,
-                        ),
-                      ),
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeOutBack,
-                        child: _isValidPhone
-                            ? const Padding(
-                          padding: EdgeInsets.only(left: 8),
-                          child: Icon(
-                            Icons.arrow_forward_rounded,
-                            color: Colors.white, size: 18,
-                          ),
-                        )
-                            : const SizedBox.shrink(),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -776,144 +684,6 @@ class _SecureBadge extends StatelessWidget {
             fontFamily: 'Poppins', fontSize: 10,
             fontWeight: FontWeight.w700, color: AppTheme.success,
           )),
-        ],
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-// PHONE INPUT FIELD
-// ══════════════════════════════════════════════════════════════
-class _PhoneInputField extends StatefulWidget {
-  const _PhoneInputField({
-    required this.controller,
-    required this.focusNode,
-    required this.isValid,
-    required this.onSubmitted,
-  });
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final bool isValid;
-  final ValueChanged<String> onSubmitted;
-
-  @override
-  State<_PhoneInputField> createState() => _PhoneInputFieldState();
-}
-
-class _PhoneInputFieldState extends State<_PhoneInputField> {
-  bool _hasFocus = false;
-  late final VoidCallback _focusListener;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusListener = () {
-      if (mounted) setState(() => _hasFocus = widget.focusNode.hasFocus);
-    };
-    widget.focusNode.addListener(_focusListener);
-  }
-
-  @override
-  void dispose() {
-    widget.focusNode.removeListener(_focusListener);
-    super.dispose();
-  }
-
-  Color get _borderColor {
-    if (widget.isValid) return AppTheme.success.withValues(alpha: 0.55);
-    if (_hasFocus) return AppTheme.brandPrimary.withValues(alpha: 0.60);
-    return Colors.grey.shade200;
-  }
-
-  Color get _bgColor {
-    if (widget.isValid) return const Color(0xFFF0FDF4);
-    if (_hasFocus) return const Color(0xFFFFF5F7);
-    return Colors.grey.shade50;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      // ── FIX 1: clipBehavior — right side check icon clip fix ─
-      clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(
-        color: _bgColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _borderColor, width: 1.5),
-        boxShadow: (widget.isValid || _hasFocus)
-            ? [
-          BoxShadow(
-            color: (widget.isValid ? AppTheme.success : AppTheme.brandPrimary)
-                .withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ]
-            : [],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('🇮🇳', style: TextStyle(fontSize: 17)),
-                const SizedBox(width: 6),
-                Text('+91', style: TextStyle(
-                  fontFamily: 'Poppins', fontSize: 14,
-                  fontWeight: FontWeight.w700, color: Colors.grey.shade700,
-                )),
-                const SizedBox(width: 3),
-                Icon(Icons.keyboard_arrow_down_rounded, size: 15, color: Colors.grey.shade400),
-              ],
-            ),
-          ),
-          Expanded(
-            child: TextField(
-              controller: widget.controller,
-              focusNode: widget.focusNode,
-              keyboardType: TextInputType.phone,
-              maxLength: 10,
-              onSubmitted: widget.onSubmitted,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              style: const TextStyle(
-                fontFamily: 'Poppins', fontSize: 18,
-                fontWeight: FontWeight.w700, color: AppTheme.brandDark,
-                letterSpacing: 2.5,
-              ),
-              decoration: InputDecoration(
-                hintText: '98765 43210',
-                hintStyle: TextStyle(
-                  fontFamily: 'Poppins', fontSize: 15,
-                  color: Colors.grey.shade300, fontWeight: FontWeight.w400,
-                  letterSpacing: 1.5,
-                ),
-                // ── FIX 2: All 6 borders none — OTP fix jaisa ─
-                border:             const OutlineInputBorder(borderSide: BorderSide.none),
-                enabledBorder:      const OutlineInputBorder(borderSide: BorderSide.none),
-                focusedBorder:      const OutlineInputBorder(borderSide: BorderSide.none),
-                errorBorder:        const OutlineInputBorder(borderSide: BorderSide.none),
-                focusedErrorBorder: const OutlineInputBorder(borderSide: BorderSide.none),
-                disabledBorder:     const OutlineInputBorder(borderSide: BorderSide.none),
-                filled: false,
-                counterText: '',
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                suffixIcon: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: widget.isValid
-                      ? const Padding(
-                    key: ValueKey('check'),
-                    padding: EdgeInsets.all(14),
-                    child: Icon(Icons.check_circle_rounded, color: AppTheme.success, size: 22),
-                  )
-                      : const SizedBox.shrink(key: ValueKey('empty')),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );

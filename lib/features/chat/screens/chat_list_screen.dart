@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/haptic_utils.dart';
 import '../../../../core/constants/app_assets.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/custom_toast.dart';
+import '../../../../core/utils/haptic_utils.dart';
 import '../../../../shared/animations/fade_animation.dart';
-import '../../../../shared/widgets/custom_network_image.dart';
+import '../../../../shared/widgets/empty_state_widget.dart';
+import '../../../../shared/widgets/premium_avatar.dart';
+import '../../../../shared/widgets/premium_icon_button.dart';
+import '../../../../shared/widgets/section_header.dart';
+import '../../../../shared/widgets/shimmer_loading_grid.dart';
 
 // ============================================================
 // 💬 CHAT LIST SCREEN — v2.0 All Widgets Inlined
@@ -108,6 +113,7 @@ class _ChatListScreenState extends State<ChatListScreen>
   final _searchFocus = FocusNode();
   bool   _searchOpen  = false;
   String _searchQuery = '';
+  bool   _isLoading   = true;
 
   late final AnimationController _searchAnim;
   late final Animation<double>   _searchExpand;
@@ -142,6 +148,8 @@ class _ChatListScreenState extends State<ChatListScreen>
     _searchFade = CurvedAnimation(
       parent: _searchAnim, curve: Curves.easeOut,
     );
+    Future.delayed(const Duration(milliseconds: 800),
+        () { if (mounted) setState(() => _isLoading = false); });
   }
 
   @override
@@ -153,7 +161,6 @@ class _ChatListScreenState extends State<ChatListScreen>
   }
 
   void _toggleSearch() {
-    HapticUtils.lightImpact();
     setState(() => _searchOpen = !_searchOpen);
     if (_searchOpen) {
       _searchAnim.forward();
@@ -229,12 +236,24 @@ class _ChatListScreenState extends State<ChatListScreen>
 
                 // ── List or empty state ─────────────────
                 Expanded(
-                  child: filtered.isEmpty
-                      ? _EmptyState(
-                    isSearching: _searchQuery.isNotEmpty,
-                    searchQuery: _searchQuery,
+                  child: _isLoading
+                      ? ShimmerLoadingGrid(
+                    mode: ShimmerMode.list,
+                    itemCount: 6,
+                    padding: EdgeInsets.only(
+                      bottom: 88 + bottomPad,
+                      top: 4,
+                    ),
                   )
-                      : ListView.builder(
+                      : filtered.isEmpty
+                          ? (_searchQuery.isNotEmpty
+                              ? EmptyStateWidget(
+                                  emoji: '🔍',
+                                  title: '"$_searchQuery" not found',
+                                  message: 'Try a different name',
+                                )
+                              : EmptyStateWidget.noChats())
+                          : ListView.builder(
                     physics: const BouncingScrollPhysics(),
                     padding: EdgeInsets.only(
                       bottom: 88 + bottomPad,
@@ -311,18 +330,18 @@ class _ChatListScreenState extends State<ChatListScreen>
             ),
           ),
           // Search toggle
-          _IconBtn(
-            icon: _searchOpen
-                ? Icons.close_rounded
-                : Icons.search_rounded,
-            isActive: _searchOpen,
+          PremiumIconButton(
+            icon: _searchOpen ? Icons.close_rounded : Icons.search_rounded,
+            backgroundColor: _searchOpen ? AppTheme.brandPrimary : Colors.white,
+            iconColor: _searchOpen ? Colors.white : AppTheme.brandDark,
+            shape: ButtonShape.rounded,
             onTap: _toggleSearch,
           ),
           const SizedBox(width: 8),
           // Compose
-          _IconBtn(
+          PremiumIconButton(
             icon: Icons.edit_outlined,
-            isActive: false,
+            shape: ButtonShape.rounded,
             onTap: () {}, // TODO: new conversation
           ),
         ],
@@ -386,53 +405,17 @@ class _ChatListScreenState extends State<ChatListScreen>
             physics: const BouncingScrollPhysics(),
             itemCount: _newMatches.length,
             itemBuilder: (_, index) {
-              final m      = _newMatches[index];
-              final isNew  = m['isNew'] as bool;
-              return GestureDetector(
+              final m     = _newMatches[index];
+              final isNew = m['isNew'] as bool;
+              return StoryAvatar(
+                imageUrl: m['image'] as String,
+                name:     m['name']  as String,
+                isNew:    isNew,
+                margin:   const EdgeInsets.symmetric(horizontal: 7),
                 onTap: () {
                   HapticUtils.lightImpact();
                   context.push('/chat_detail');
                 },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 7),
-                  child: Column(
-                    children: [
-                      // Gradient ring (new) or grey ring (seen)
-                      Container(
-                        padding: const EdgeInsets.all(2.5),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: isNew ? AppTheme.brandGradient : null,
-                          color: isNew ? null : Colors.grey.shade300,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                          ),
-                          child: ClipOval(
-                            child: CustomNetworkImage(
-                              imageUrl: m['image'],
-                              width: 50, height: 50,
-                              borderRadius: 25,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        m['name'],
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.brandDark,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               );
             },
           ),
@@ -443,45 +426,11 @@ class _ChatListScreenState extends State<ChatListScreen>
 
   // ── Section label ─────────────────────────────────────────
   Widget _buildSectionLabel(List<Map<String, dynamic>> filtered) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          Text(
-            _searchQuery.isEmpty
-                ? 'Conversations'
-                : '${filtered.length} result${filtered.length == 1 ? '' : 's'}',
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.brandDark,
-              letterSpacing: -0.1,
-            ),
-          ),
-          if (_totalUnread > 0 && _searchQuery.isEmpty) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8, vertical: 2,
-              ),
-              decoration: BoxDecoration(
-                color: AppTheme.brandPrimary,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '$_totalUnread',
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+    return SectionHeader(
+      title: _searchQuery.isEmpty
+          ? 'Conversations'
+          : '${filtered.length} result${filtered.length == 1 ? '' : 's'}',
+      badge: (_totalUnread > 0 && _searchQuery.isEmpty) ? _totalUnread : null,
     );
   }
 
@@ -513,19 +462,34 @@ class _ChatListScreenState extends State<ChatListScreen>
             _OptionTile(
               icon: Icons.volume_off_rounded,
               label: 'Mute Conversation',
-              onTap: () => Navigator.pop(context),
+              onTap: () {
+                Navigator.pop(context);
+                CustomToast.info(
+                  context,
+                  '${(convo['name'] as String).split(' ').first} muted',
+                );
+              },
             ),
             _OptionTile(
               icon: Icons.block_rounded,
               label: 'Block User',
               color: Colors.orange.shade600,
-              onTap: () => Navigator.pop(context),
+              onTap: () {
+                Navigator.pop(context);
+                CustomToast.warning(
+                  context,
+                  '${(convo['name'] as String).split(' ').first} blocked',
+                );
+              },
             ),
             _OptionTile(
               icon: Icons.delete_outline_rounded,
               label: 'Delete Chat',
               color: Colors.red.shade500,
-              onTap: () => Navigator.pop(context),
+              onTap: () {
+                Navigator.pop(context);
+                CustomToast.info(context, 'Conversation deleted');
+              },
             ),
           ],
         ),
@@ -570,44 +534,6 @@ class _AmbientBackground extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════
 // HEADER ICON BUTTON
 // ══════════════════════════════════════════════════════════════
-class _IconBtn extends StatelessWidget {
-  const _IconBtn({
-    required this.icon,
-    required this.isActive,
-    required this.onTap,
-  });
-  final IconData icon;
-  final bool     isActive;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      width: 44, height: 44,
-      decoration: BoxDecoration(
-        color: isActive ? AppTheme.brandPrimary : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: isActive ? AppTheme.primaryGlow : AppTheme.softShadow,
-        border: Border.all(
-          color: isActive ? AppTheme.brandPrimary : Colors.grey.shade200,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Icon(
-            icon, size: 20,
-            color: isActive ? Colors.white : AppTheme.brandDark,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ══════════════════════════════════════════════════════════════
 // INLINE SEARCH FIELD
@@ -721,48 +647,10 @@ class _ConvoTile extends StatelessWidget {
           children: [
 
             // Avatar + badges
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: CustomNetworkImage(
-                    imageUrl: convo['image'],
-                    width: 54, height: 54,
-                    borderRadius: 18,
-                  ),
-                ),
-                // Premium badge
-                if (isPremium)
-                  Positioned(
-                    top: -2, right: -2,
-                    child: Container(
-                      width: 18, height: 18,
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.goldGradient,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.5),
-                      ),
-                      child: const Icon(
-                        Icons.diamond_rounded,
-                        size: 9, color: Colors.white,
-                      ),
-                    ),
-                  ),
-                // Online dot
-                if (isOnline)
-                  Positioned(
-                    bottom: 1, right: 1,
-                    child: Container(
-                      width: 13, height: 13,
-                      decoration: BoxDecoration(
-                        color: AppTheme.onlineDot,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                    ),
-                  ),
-              ],
+            ConversationAvatar(
+              imageUrl:  convo['image']  as String,
+              isOnline:  isOnline,
+              isPremium: isPremium,
             ),
             const SizedBox(width: 12),
 
@@ -884,82 +772,6 @@ class _StatusIcon extends StatelessWidget {
       default:
         return const SizedBox.shrink();
     }
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-// EMPTY STATE
-// ══════════════════════════════════════════════════════════════
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({
-    required this.isSearching,
-    this.searchQuery = '',
-  });
-  final bool   isSearching;
-  final String searchQuery;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(36),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 88, height: 88,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppTheme.brandPrimary.withValues(alpha: 0.10),
-                    AppTheme.brandPrimary.withValues(alpha: 0.05),
-                  ],
-                ),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppTheme.brandPrimary.withValues(alpha: 0.12),
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  isSearching ? '🔍' : '💬',
-                  style: const TextStyle(fontSize: 36),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              isSearching
-                  ? '"$searchQuery" not found'
-                  : 'No conversations yet',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: 'Cormorant Garamond',
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.brandDark,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isSearching
-                  ? 'Try a different name'
-                  : 'Send an interest to start\na conversation',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 13,
-                color: Colors.grey.shade500,
-                height: 1.55,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
